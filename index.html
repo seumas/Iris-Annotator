@@ -120,6 +120,7 @@
 
 <body class="h-screen flex flex-col md:flex-row text-gh-fg font-sans bg-gh-bg selection:bg-gh-accent selection:text-white">
 
+    <!-- Sidebar: Controls -->
     <aside class="w-full md:w-[420px] bg-gh-panel border-r border-gh-border p-6 flex flex-col h-full overflow-y-auto shrink-0 shadow-lg z-20 transition-colors relative">
         
         <div class="flex items-start justify-between mb-5">
@@ -160,7 +161,8 @@
             </label>
             <div class="flex gap-2 items-center">
                 <select id="profileSelect" class="flex-1 bg-gh-panel border border-gh-border rounded p-1.5 text-sm font-bold outline-none focus:border-gh-accent cursor-pointer">
-                    </select>
+                    <!-- Populated via Javascript -->
+                </select>
                 <div class="relative group">
                     <button class="p-1.5 rounded hover:bg-gh-panel border border-transparent hover:border-gh-border transition-colors text-gh-muted hover:text-gh-fg" title="Profile Options">
                         <i class="ph-bold ph-dots-three-vertical text-lg"></i>
@@ -188,7 +190,8 @@
                 </div>
                 
                 <div id="rulesContainer" class="space-y-3 mb-4">
-                    </div>
+                    <!-- Rule Cards Injected Here -->
+                </div>
 
                 <div class="flex gap-2 border-t border-dashed border-gh-border pt-4">
                     <button onclick="addRule()" class="flex-1 py-2 border border-gh-border rounded-lg text-sm font-medium hover:bg-gh-bg hover:border-gh-accent hover:text-gh-accent transition-colors flex items-center justify-center gap-2">
@@ -210,10 +213,15 @@
 
             <hr class="border-gh-border">
 
+            <!-- Document Settings -->
             <div class="space-y-4">
                 <label class="block text-sm font-bold tracking-wide uppercase opacity-80">Output Settings</label>
                 
                 <div class="bg-gh-bg p-3 rounded-lg border border-gh-border space-y-3">
+                    <label class="flex items-center justify-between text-xs font-bold opacity-80">
+                        Filename Modifier
+                        <i class="ph-bold ph-info cursor-help" title="Added to the saved filename (e.g. 'Prefix_OriginalName.pdf'). Leave blank for default timestamp."></i>
+                    </label>
                     <div class="flex gap-2">
                         <select id="nameModMode" class="bg-gh-panel border border-gh-border rounded p-1.5 text-xs outline-none focus:border-gh-accent cursor-pointer">
                             <option value="prefix">Prefix</option>
@@ -230,6 +238,7 @@
                 <div>
                     <label class="block text-xs font-bold mb-1 flex items-center justify-between opacity-80">
                         Author Metadata
+                        <i class="ph-bold ph-info cursor-help" title="The name saved into the PDF's internal highlight properties (visible on hover/right-click in most PDF readers)."></i>
                     </label>
                     <input type="text" id="authorName" placeholder="e.g. Annotator Bot" class="w-full bg-gh-bg border border-gh-border rounded p-2 text-sm focus:outline-none focus:border-gh-accent transition-colors placeholder-opacity-50">
                 </div>
@@ -241,36 +250,38 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.1.0</span>
+            <span>v0.2.0</span>
         </div>
     </aside>
 
+    <!-- Main Content -->
     <main class="flex-1 p-4 md:p-8 flex flex-col h-full overflow-hidden transition-colors max-w-6xl mx-auto w-full relative">
         
+        <!-- Drag & Drop Zone -->
         <div id="dropzone" class="border-2 border-dashed border-gh-border rounded-2xl bg-gh-panel p-6 flex flex-col items-center justify-center text-center transition-all duration-200 shrink-0 hover:border-gh-accent hover:bg-gh-bg cursor-pointer min-h-[140px]">
             <h3 class="text-lg font-bold mb-1">Queue Documents</h3>
             <p class="text-sm opacity-70">Drag & drop multiple PDFs here, or click to browse</p>
             <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
         </div>
 
-        <div class="mt-6 flex flex-col flex-1 min-h-0 bg-gh-panel rounded-2xl shadow-sm border border-gh-border overflow-hidden">
+        <div id="inputActionsBar" class="mt-3 flex justify-end gap-3 hidden shrink-0">
+            <button id="stripBtn" onclick="prepareStripModal()" title="Removes Highlights, Underlines, Strikeouts, and Sticky Notes. Leaves Links and Forms untouched." class="bg-transparent border border-gh-danger text-gh-danger hover:bg-gh-danger hover:text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm">
+                <i class="ph-bold ph-eraser"></i> Strip Annotations...
+            </button>
+            <button id="processBtn" onclick="processQueueAnnotate()" class="bg-gh-accent hover:bg-gh-accent/80 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2">
+                <i class="ph-bold ph-highlighter"></i> Annotate Files
+            </button>
+        </div>
+
+        <div class="mt-4 flex flex-col flex-1 min-h-0 bg-gh-panel rounded-2xl shadow-sm border border-gh-border overflow-hidden">
             
             <div class="p-4 border-b border-gh-border bg-gh-bg flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
                 <h3 class="font-bold flex items-center gap-2">
-                    <i class="ph-bold ph-stack"></i> Processing Queue
+                    <i class="ph-bold ph-stack"></i> Processing Results
                 </h3>
                 <div class="flex flex-wrap gap-2">
                     <button id="clearQueueBtn" onclick="clearQueue()" class="hidden px-4 py-2 text-sm font-bold text-gh-danger hover:bg-gh-danger/10 border border-transparent hover:border-gh-danger/30 rounded-lg transition-colors">Clear All</button>
-                    
                     <button id="saveAllBtn" onclick="saveAllFiles()" class="hidden px-4 py-2 text-sm font-bold text-gh-success hover:bg-gh-success/10 border border-transparent hover:border-gh-success/30 rounded-lg transition-colors flex items-center gap-1"><i class="ph-bold ph-download-simple"></i> Save All</button>
-
-                    <button id="stripBtn" onclick="toggleStripModal()" title="Removes Highlights, Underlines, Strikeouts, and Sticky Notes. Leaves Links and Forms untouched." class="hidden bg-transparent border border-gh-danger text-gh-danger hover:bg-gh-danger hover:text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="ph-bold ph-eraser"></i> Strip Annotations...
-                    </button>
-
-                    <button id="processBtn" onclick="processQueueAnnotate()" class="hidden bg-gh-accent hover:bg-gh-accent/80 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="ph-bold ph-highlighter"></i> Annotate Files
-                    </button>
                 </div>
             </div>
 
@@ -279,10 +290,11 @@
                     <i class="ph-thin ph-files text-5xl mb-2"></i>
                     <p class="text-sm font-medium">Ready for PDFs.</p>
                 </div>
-                </div>
+            </div>
         </div>
     </main>
 
+    <!-- Modals -->
     <div id="stripModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-gh-panel rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-gh-border flex flex-col">
             <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
@@ -300,12 +312,14 @@
                     <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
                         <input type="radio" name="stripMode" value="author" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
                         <span class="text-sm font-bold">By Author</span>
-                        <input type="text" id="stripAuthorName" placeholder="Exact Name..." class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs outline-none focus:border-gh-danger">
+                        <select id="stripAuthorSelect" class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs outline-none focus:border-gh-danger">
+                        </select>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
                         <input type="radio" name="stripMode" value="color" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
                         <span class="text-sm font-bold">By Color</span>
-                        <input type="color" id="stripColorValue" value="#f1fa8c" class="hidden ml-2 w-8 h-8 rounded cursor-pointer p-0 border-0">
+                        <select id="stripColorSelect" class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs font-mono outline-none focus:border-gh-danger">
+                        </select>
                     </label>
                 </div>
             </div>
@@ -412,6 +426,15 @@
             ];
         }
 
+        // Convert floats back to hex for UI display
+        function rgbFloatToHex(r, g, b) {
+            const toHex = (c) => {
+                const hex = Math.round(c * 255).toString(16);
+                return hex.length === 1 ? "0" + hex : hex;
+            };
+            return "#" + toHex(r) + toHex(g) + toHex(b);
+        }
+
         // Helper to determine if text should be dark or light based on background brightness
         function getContrastColor(hex) {
             const r = parseInt(hex.substr(1, 2), 16);
@@ -476,9 +499,6 @@
         function updateThemeIcon() { 
             themeIcon.className = document.documentElement.classList.contains('dark') ? 'ph-bold ph-sun' : 'ph-bold ph-moon'; 
         }
-        
-        // Initialize Theme icon
-        updateThemeIcon();
         
         themeToggle.addEventListener('click', () => {
             document.documentElement.classList.toggle('dark');
@@ -823,6 +843,7 @@
                         ${mainInputHTML}
                         
                         <div class="flex items-center justify-between gap-2">
+                            <!-- Tool Toggles -->
                             <div class="flex bg-gh-border/30 p-0.5 rounded gap-0.5">
                                 <div onclick="setMatchType('${rule.id}', 'case')" class="${baseBtnClass} ${cAct}" title="Case Sensitive">Aa</div>
                                 <div class="w-px bg-gh-border mx-1 my-1"></div>
@@ -831,6 +852,7 @@
                                 <div onclick="setMatchType('${rule.id}', 'regex')" class="${baseBtnClass} ${rAct} ${rule.presetName ? 'hidden' : ''}" title="Regex Match">.*</div>
                             </div>
                             
+                            <!-- Color & Trash Actions -->
                             <div class="flex items-center gap-2 shrink-0">
                                 <div class="relative color-picker-wrapper">
                                     <button onclick="togglePalette('${rule.id}')" class="w-6 h-6 rounded border border-gh-border shadow-sm cursor-pointer hover:scale-105 transition-transform" style="background-color: ${rule.color}" title="Pick Color"></button>
@@ -850,6 +872,7 @@
                         </div>
                     </div>
                     
+                    <!-- Hover Note Input -->
                     <div class="flex items-center gap-2 opacity-70 focus-within:opacity-100 transition-opacity border-t border-gh-border/50 pt-2 mt-1">
                         <i class="ph-bold ph-note-pencil text-gh-muted"></i>
                         <input type="text" placeholder="Hover sticky note (optional)..." value="${rule.note || ''}" 
@@ -923,8 +946,89 @@
         
         function toggleStripInputs() {
             const mode = document.querySelector('input[name="stripMode"]:checked').value;
-            document.getElementById('stripAuthorName').classList.toggle('hidden', mode !== 'author');
-            document.getElementById('stripColorValue').classList.toggle('hidden', mode !== 'color');
+            document.getElementById('stripAuthorSelect').classList.toggle('hidden', mode !== 'author');
+            document.getElementById('stripColorSelect').classList.toggle('hidden', mode !== 'color');
+        }
+
+        // --- Extract Annotations for Strip Modal ---
+        async function prepareStripModal() {
+            toggleStripModal(); // Open immediately to prevent UI locking
+            
+            const authorSelect = document.getElementById('stripAuthorSelect');
+            const colorSelect = document.getElementById('stripColorSelect');
+            
+            authorSelect.innerHTML = '<option value="">Scanning files...</option>';
+            colorSelect.innerHTML = '<option value="">Scanning files...</option>';
+            authorSelect.disabled = true;
+            colorSelect.disabled = true;
+
+            const pendingFiles = fileQueue.filter(f => f.status === 'pending');
+            const uniqueAuthors = new Set();
+            const uniqueColors = new Set();
+
+            try {
+                for (let fileRecord of pendingFiles) {
+                    const arrayBuffer = await fileRecord.file.arrayBuffer();
+                    const { PDFDocument, PDFName } = PDFLib;
+                    const pdfLibDoc = await PDFDocument.load(arrayBuffer.slice(0), { ignoreEncryption: true });
+                    const numPages = pdfLibDoc.getPageCount();
+
+                    for (let i = 0; i < numPages; i++) {
+                        const page = pdfLibDoc.getPage(i);
+                        const annots = page.node.Annots();
+                        
+                        if (annots) {
+                            for (let a = 0; a < annots.size(); a++) {
+                                const annotRef = annots.get(a);
+                                const annot = pdfLibDoc.context.lookup(annotRef);
+                                
+                                if (annot) {
+                                    const subtype = annot.get(PDFName.of('Subtype'))?.name;
+                                    
+                                    if (['Highlight', 'Text', 'Underline', 'StrikeOut', 'Squiggly'].includes(subtype)) {
+                                        // Extract Author
+                                        const tStr = annot.get(PDFName.of('T'));
+                                        if (tStr && tStr.value) {
+                                            uniqueAuthors.add(tStr.value);
+                                        }
+
+                                        // Extract Color
+                                        const cArr = annot.get(PDFName.of('C'));
+                                        if (cArr && cArr.array && cArr.array.length >= 3) {
+                                            const r = cArr.get(0).value;
+                                            const g = cArr.get(1).value;
+                                            const b = cArr.get(2).value;
+                                            uniqueColors.add(rgbFloatToHex(r, g, b));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Populate the UI with findings
+                if (uniqueAuthors.size > 0) {
+                    authorSelect.innerHTML = Array.from(uniqueAuthors)
+                        .map(a => `<option value="${a}">${a}</option>`).join('');
+                    authorSelect.disabled = false;
+                } else {
+                    authorSelect.innerHTML = '<option value="">No authors found</option>';
+                }
+
+                if (uniqueColors.size > 0) {
+                    colorSelect.innerHTML = Array.from(uniqueColors)
+                        .map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
+                    colorSelect.disabled = false;
+                } else {
+                    colorSelect.innerHTML = '<option value="">No colors found</option>';
+                }
+
+            } catch (e) {
+                console.error(e);
+                authorSelect.innerHTML = '<option value="">Error scanning</option>';
+                colorSelect.innerHTML = '<option value="">Error scanning</option>';
+            }
         }
 
         // --- Drag & Drop Queue Logic ---
@@ -1017,12 +1121,13 @@
         }
 
         function renderQueue() {
-            document.getElementById('emptyQueueMsg').classList.toggle('hidden', fileQueue.length > 0);
-            processBtn.classList.toggle('hidden', fileQueue.length === 0);
-            stripBtn.classList.toggle('hidden', fileQueue.length === 0);
-            clearQueueBtn.classList.toggle('hidden', fileQueue.length === 0);
-            
+            const pendingCount = fileQueue.filter(f => f.status === 'pending').length;
             const doneCount = fileQueue.filter(f => f.status === 'done' || f.status === 'stripped').length;
+            
+            // Toggle Action Bar Visibilities
+            document.getElementById('inputActionsBar').classList.toggle('hidden', pendingCount === 0);
+            document.getElementById('emptyQueueMsg').classList.toggle('hidden', fileQueue.length > 0);
+            document.getElementById('clearQueueBtn').classList.toggle('hidden', fileQueue.length === 0);
             document.getElementById('saveAllBtn').classList.toggle('hidden', doneCount === 0);
 
             fileQueue.forEach(fileRecord => {
@@ -1167,8 +1272,8 @@
         function executeSelectiveStrip() {
             toggleStripModal();
             const mode = document.querySelector('input[name="stripMode"]:checked').value;
-            const authorTarget = document.getElementById('stripAuthorName').value.trim();
-            const colorTarget = document.getElementById('stripColorValue').value;
+            const authorTarget = document.getElementById('stripAuthorSelect').value;
+            const colorTarget = document.getElementById('stripColorSelect').value;
             
             const config = { mode, authorTarget, colorTarget };
             processQueueStrip(config);
@@ -1185,7 +1290,7 @@
             clearQueueBtn.disabled = true;
             document.getElementById('appIcon').classList.add('animate-iris');
 
-            const targetColorRgb = hexToRgbFloat(config.colorTarget);
+            const targetColorRgb = config.colorTarget ? hexToRgbFloat(config.colorTarget) : [0,0,0];
 
             for (let fileRecord of pending) {
                 fileRecord.status = 'processing'; 
@@ -1226,15 +1331,15 @@
                                         
                                         if (config.mode === 'all') {
                                             shouldStrip = true;
-                                        } else if (config.mode === 'author') {
+                                        } else if (config.mode === 'author' && config.authorTarget) {
                                             const tStr = annot.get(PDFName.of('T'));
                                             const annotAuthor = tStr ? tStr.value : ''; 
-                                            if (annotAuthor.includes(config.authorTarget)) {
+                                            if (annotAuthor === config.authorTarget) {
                                                 shouldStrip = true;
                                             }
-                                        } else if (config.mode === 'color') {
+                                        } else if (config.mode === 'color' && config.colorTarget) {
                                             const cArr = annot.get(PDFName.of('C'));
-                                            if (cArr && cArr.array.length >= 3) {
+                                            if (cArr && cArr.array && cArr.array.length >= 3) {
                                                 const r = cArr.get(0).value;
                                                 const g = cArr.get(1).value;
                                                 const b = cArr.get(2).value;
