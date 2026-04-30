@@ -250,7 +250,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.2.0</span>
+            <span>v0.3.0</span>
         </div>
     </aside>
 
@@ -296,34 +296,37 @@
 
     <!-- Modals -->
     <div id="stripModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-gh-panel rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-gh-border flex flex-col">
+        <div class="bg-gh-panel rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-gh-border flex flex-col max-h-[80vh]">
             <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
                 <h2 class="text-lg font-bold flex items-center gap-2"><i class="ph-bold ph-eraser text-gh-danger"></i> Strip Annotations</h2>
                 <button onclick="toggleStripModal()" class="opacity-50 hover:opacity-100 hover:text-gh-danger transition-colors"><i class="ph-bold ph-x text-xl"></i></button>
             </div>
-            <div class="p-5 space-y-4">
+            <div class="p-5 overflow-y-auto space-y-5">
                 <p class="text-sm opacity-80">Choose which annotations to wipe from the queued PDFs. (Links and Forms are always preserved).</p>
                 
-                <div class="space-y-3">
-                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
-                        <input type="radio" name="stripMode" value="all" checked class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
-                        <span class="text-sm font-bold">Strip All</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
-                        <input type="radio" name="stripMode" value="author" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
-                        <span class="text-sm font-bold">By Author</span>
-                        <select id="stripAuthorSelect" class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs outline-none focus:border-gh-danger">
-                        </select>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
-                        <input type="radio" name="stripMode" value="color" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
-                        <span class="text-sm font-bold">By Color</span>
-                        <select id="stripColorSelect" class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs font-mono outline-none focus:border-gh-danger">
-                        </select>
+                <div class="bg-gh-bg p-3 rounded border border-gh-border">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="stripAllCheck" checked class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
+                        <span class="text-sm font-bold">Strip All Annotations</span>
                     </label>
                 </div>
+
+                <div id="selectiveStripContainer" class="space-y-5 opacity-50 pointer-events-none transition-opacity">
+                    <div>
+                        <span class="text-xs font-bold uppercase opacity-70 mb-2 block">Strip By Author</span>
+                        <div id="stripAuthorList" class="flex flex-wrap gap-2">
+                            <!-- Populated Dynamically -->
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold uppercase opacity-70 mb-2 block">Strip By Color</span>
+                        <div id="stripColorList" class="flex flex-wrap gap-2">
+                            <!-- Populated Dynamically -->
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 border-t border-gh-border bg-gh-bg flex justify-end gap-2">
+            <div class="p-4 border-t border-gh-border bg-gh-bg flex justify-end gap-2 shrink-0">
                 <button onclick="toggleStripModal()" class="px-4 py-2 text-sm opacity-70 hover:opacity-100 font-medium">Cancel</button>
                 <button onclick="executeSelectiveStrip()" class="px-4 py-2 text-sm font-bold bg-gh-danger text-white rounded hover:bg-gh-danger/80 transition-colors">Confirm & Strip</button>
             </div>
@@ -946,22 +949,24 @@
         }
         
         function toggleStripInputs() {
-            const mode = document.querySelector('input[name="stripMode"]:checked').value;
-            document.getElementById('stripAuthorSelect').classList.toggle('hidden', mode !== 'author');
-            document.getElementById('stripColorSelect').classList.toggle('hidden', mode !== 'color');
+            const isStripAll = document.getElementById('stripAllCheck').checked;
+            const container = document.getElementById('selectiveStripContainer');
+            if (isStripAll) {
+                container.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                container.classList.remove('opacity-50', 'pointer-events-none');
+            }
         }
 
         // --- Extract Annotations for Strip Modal ---
         async function prepareStripModal() {
             toggleStripModal(); // Open immediately to prevent UI locking
             
-            const authorSelect = document.getElementById('stripAuthorSelect');
-            const colorSelect = document.getElementById('stripColorSelect');
+            const authorList = document.getElementById('stripAuthorList');
+            const colorList = document.getElementById('stripColorList');
             
-            authorSelect.innerHTML = '<option value="">Scanning files...</option>';
-            colorSelect.innerHTML = '<option value="">Scanning files...</option>';
-            authorSelect.disabled = true;
-            colorSelect.disabled = true;
+            authorList.innerHTML = '<span class="text-xs opacity-50">Scanning files...</span>';
+            colorList.innerHTML = '<span class="text-xs opacity-50">Scanning files...</span>';
 
             const pendingFiles = fileQueue.filter(f => f.status === 'pending');
             const uniqueAuthors = new Set();
@@ -1013,27 +1018,37 @@
                     }
                 }
 
+                // UI Classes for checkbox chips
+                const chipClass = "flex items-center gap-1.5 bg-gh-panel border border-gh-border px-2.5 py-1.5 rounded-md text-xs cursor-pointer hover:border-gh-danger transition-colors font-medium";
+
                 // Populate the UI with findings
                 if (uniqueAuthors.size > 0) {
-                    authorSelect.innerHTML = Array.from(uniqueAuthors)
-                        .map(a => `<option value="${a}">${a}</option>`).join('');
-                    authorSelect.disabled = false;
+                    authorList.innerHTML = Array.from(uniqueAuthors).map(a => `
+                        <label class="${chipClass}">
+                            <input type="checkbox" name="stripAuthor" value="${a.replace(/"/g, '&quot;')}" class="accent-gh-danger w-3.5 h-3.5">
+                            <span>${a}</span>
+                        </label>
+                    `).join('');
                 } else {
-                    authorSelect.innerHTML = '<option value="">No authors found</option>';
+                    authorList.innerHTML = '<span class="text-xs opacity-50 italic">No authors found</span>';
                 }
 
                 if (uniqueColors.size > 0) {
-                    colorSelect.innerHTML = Array.from(uniqueColors)
-                        .map(c => `<option value="${c}" style="background-color:${c}">${c.toUpperCase()}</option>`).join('');
-                    colorSelect.disabled = false;
+                    colorList.innerHTML = Array.from(uniqueColors).map(c => `
+                        <label class="${chipClass}">
+                            <input type="checkbox" name="stripColor" value="${c}" class="accent-gh-danger w-3.5 h-3.5">
+                            <div class="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10" style="background-color:${c}"></div>
+                            <span class="uppercase tracking-wider opacity-80">${c}</span>
+                        </label>
+                    `).join('');
                 } else {
-                    colorSelect.innerHTML = '<option value="">No colors found</option>';
+                    colorList.innerHTML = '<span class="text-xs opacity-50 italic">No colors found</span>';
                 }
 
             } catch (e) {
                 console.error(e);
-                authorSelect.innerHTML = '<option value="">Error scanning</option>';
-                colorSelect.innerHTML = '<option value="">Error scanning</option>';
+                authorList.innerHTML = '<span class="text-xs text-gh-danger">Error scanning files</span>';
+                colorList.innerHTML = '<span class="text-xs text-gh-danger">Error scanning files</span>';
             }
         }
 
@@ -1277,11 +1292,13 @@
         
         function executeSelectiveStrip() {
             toggleStripModal();
-            const mode = document.querySelector('input[name="stripMode"]:checked').value;
-            const authorTarget = document.getElementById('stripAuthorSelect').value;
-            const colorTarget = document.getElementById('stripColorSelect').value;
+            const stripAll = document.getElementById('stripAllCheck').checked;
             
-            const config = { mode, authorTarget, colorTarget };
+            // Gather multiple selected targets
+            const authorTargets = Array.from(document.querySelectorAll('input[name="stripAuthor"]:checked')).map(el => el.value);
+            const colorTargets = Array.from(document.querySelectorAll('input[name="stripColor"]:checked')).map(el => el.value);
+            
+            const config = { stripAll, authorTargets, colorTargets };
             processQueueStrip(config);
         }
 
@@ -1296,7 +1313,7 @@
             clearQueueBtn.disabled = true;
             document.getElementById('appIcon').classList.add('animate-iris');
 
-            const targetColorRgb = config.colorTarget ? hexToRgbFloat(config.colorTarget) : [0,0,0];
+            const targetColorsRgb = (config.colorTargets || []).map(hex => hexToRgbFloat(hex));
 
             for (let fileRecord of pending) {
                 fileRecord.status = 'processing'; 
@@ -1336,32 +1353,38 @@
                                     if (['/Highlight', '/Text', '/Underline', '/StrikeOut', '/Squiggly'].includes(subtype)) {
                                         let shouldStrip = false;
                                         
-                                        if (config.mode === 'all') {
+                                        if (config.stripAll) {
                                             shouldStrip = true;
-                                        } else if (config.mode === 'author' && config.authorTarget) {
+                                        } else {
+                                            // Check against selected authors
                                             const tObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('T')));
                                             const annotAuthor = tObj ? (typeof tObj.decodeText === 'function' ? tObj.decodeText() : tObj.value) : ''; 
-                                            if (annotAuthor === config.authorTarget) {
+                                            if (config.authorTargets && config.authorTargets.includes(annotAuthor)) {
                                                 shouldStrip = true;
                                             }
-                                        } else if (config.mode === 'color' && config.colorTarget) {
-                                            const cObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('C')));
-                                            if (cObj && typeof cObj.size === 'function' && cObj.size() >= 3) {
-                                                const getVal = (idx) => {
-                                                    const num = pdfLibDoc.context.lookup(cObj.get(idx));
-                                                    if (!num) return 0;
-                                                    return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
-                                                };
-                                                
-                                                const r = getVal(0);
-                                                const g = getVal(1);
-                                                const b = getVal(2);
-                                                
-                                                // Tolerance check for floating point math inaccuracies
-                                                if (Math.abs(r - targetColorRgb[0]) < 0.05 && 
-                                                    Math.abs(g - targetColorRgb[1]) < 0.05 && 
-                                                    Math.abs(b - targetColorRgb[2]) < 0.05) {
-                                                    shouldStrip = true;
+                                            
+                                            // Check against selected colors
+                                            if (!shouldStrip && targetColorsRgb.length > 0) {
+                                                const cObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('C')));
+                                                if (cObj && typeof cObj.size === 'function' && cObj.size() >= 3) {
+                                                    const getVal = (idx) => {
+                                                        const num = pdfLibDoc.context.lookup(cObj.get(idx));
+                                                        if (!num) return 0;
+                                                        return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
+                                                    };
+                                                    
+                                                    const r = getVal(0);
+                                                    const g = getVal(1);
+                                                    const b = getVal(2);
+                                                    
+                                                    for (const targetRgb of targetColorsRgb) {
+                                                        if (Math.abs(r - targetRgb[0]) < 0.05 && 
+                                                            Math.abs(g - targetRgb[1]) < 0.05 && 
+                                                            Math.abs(b - targetRgb[2]) < 0.05) {
+                                                            shouldStrip = true;
+                                                            break;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
