@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iris Annotator</title>
+    
+    <!-- Generated SVG Favicon (Aperture/Iris) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 256 256%22><rect width=%22256%22 height=%22256%22 fill=%22none%22/><circle cx=%22128%22 cy=%22128%22 r=%2296%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><circle cx=%22128%22 cy=%22128%22 r=%2232%22 fill=%22none%22 stroke=%22%232f81f7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22150.63%22 y1=%22105.37%22 x2=%22195.88%22 y2=%2260.12%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22105.37%22 y1=%22150.63%22 x2=%2260.12%22 y2=%22195.88%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22150.63%22 y1=%22150.63%22 x2=%22195.88%22 y2=%22195.88%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22105.37%22 y1=%22105.37%22 x2=%2260.12%22 y2=%2260.12%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/></svg>">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: 'var(--bg)',
+                            panel: 'var(--panel)',
+                            fg: 'var(--fg)',
+                            muted: 'var(--muted)',
+                            border: 'var(--border)',
+                            accent: 'var(--accent)',
+                            success: 'var(--success)',
+                            danger: 'var(--danger)',
+                            link: 'var(--link)',
+                            warning: 'var(--warning)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --panel: #ffffff;
+            --fg: #24292f;
+            --muted: #57606a;
+            --border: #d0d7de;
+            --accent: #0969da;
+            --success: #2da44e;
+            --danger: #cf222e;
+            --link: #0969da;
+            --warning: #9a6700;
+        }
+        .dark {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --fg: #c9d1d9;
+            --muted: #8b949e;
+            --border: #30363d;
+            --accent: #2f81f7;
+            --success: #238636;
+            --danger: #da3633;
+            --link: #58a6ff;
+            --warning: #d29922;
+        }
+
+        body { transition: background-color 0.2s, color 0.2s; }
+        .drop-active {
+            border-color: var(--accent) !important;
+            background-color: color-mix(in srgb, var(--accent) 10%, transparent) !important;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        
+        .rule-card { animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        details > summary { list-style: none; cursor: pointer; }
+        details > summary::-webkit-details-marker { display: none; }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden; opacity: 0; transition: opacity 0.2s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible; opacity: 1;
+        }
+
+        .color-picker-wrapper .palette-menu {
+            transform-origin: bottom right;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px;
+        }
+
+        /* Custom Iris Processing Animation */
+        @keyframes iris-process {
+            0% { transform: rotate(0deg) scale(1); opacity: 1; filter: drop-shadow(0 0 0px transparent); }
+            50% { transform: rotate(180deg) scale(1.15); opacity: 0.9; filter: drop-shadow(0 0 6px var(--accent)); }
+            100% { transform: rotate(360deg) scale(1); opacity: 1; filter: drop-shadow(0 0 0px transparent); }
+        }
+        .animate-iris {
+            animation: iris-process 1.2s ease-in-out infinite;
+        }
+    </style>
+
+    <!-- External Libraries (Loaded via CDN) -->
+    <!-- PDF.js handles reading the PDF text and locating coordinates -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- PDF-Lib handles creating the new PDF and safely injecting annotation objects -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- Phosphor Icons for crisp SVG UI icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body class="h-screen flex flex-col md:flex-row text-gh-fg font-sans bg-gh-bg selection:bg-gh-accent selection:text-white">
+
+    <!-- Sidebar: Controls -->
+    <aside class="w-full md:w-[420px] bg-gh-panel border-r border-gh-border p-6 flex flex-col h-full overflow-y-auto shrink-0 shadow-lg z-20 transition-colors relative">
+        
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-5">
+            <div class="flex flex-col">
+                <h1 class="text-2xl font-bold flex items-center gap-2 leading-none">
+                    <i id="appIcon" class="ph-fill ph-aperture text-gh-accent transition-all duration-300"></i> Iris Annotator
+                </h1>
+                <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-gh-muted ml-8 mt-1.5 opacity-80">Rule-Based PDF Annotator</span>
+            </div>
+            
+            <div class="flex gap-1 shrink-0 -mt-1">
+                <div class="relative group tooltip">
+                    <button id="volBtn" class="p-2 rounded-md hover:bg-gh-bg transition-colors text-lg text-gh-muted hover:text-gh-fg">
+                        <i class="ph-fill ph-speaker-high" id="volIcon"></i>
+                    </button>
+                    <!-- Volume Slider Popup -->
+                    <div class="tooltip-text absolute right-0 top-full mt-1 bg-gh-panel border border-gh-border p-3 rounded-lg shadow-xl z-50 flex items-center gap-2 w-32">
+                        <i class="ph-fill ph-speaker-low text-xs"></i>
+                        <input type="range" id="volSlider" min="0" max="1" step="0.1" value="0.5" class="w-full">
+                        <i class="ph-fill ph-speaker-high text-xs"></i>
+                    </div>
+                </div>
+                
+                <button onclick="toggleHelp()" class="p-2 rounded-md hover:bg-gh-bg transition-colors text-lg text-gh-muted hover:text-gh-fg" title="Help & About">
+                    <i class="ph-bold ph-question"></i>
+                </button>
+                <button id="themeToggle" class="p-2 rounded-md hover:bg-gh-bg transition-colors text-lg text-gh-muted hover:text-gh-fg" title="Toggle Theme">
+                    <i class="ph-bold ph-moon" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Profiles Management -->
+        <div class="mb-5 bg-gh-bg p-3 rounded-xl border border-gh-border flex flex-col gap-2">
+            <label class="block text-xs font-bold uppercase opacity-80 flex items-center gap-2">
+                <i class="ph-bold ph-folder-open"></i> Workspace Profile
+            </label>
+            <div class="flex gap-2 items-center">
+                <select id="profileSelect" class="flex-1 bg-gh-panel border border-gh-border rounded p-1.5 text-sm font-bold outline-none focus:border-gh-accent cursor-pointer">
+                    <!-- Populated by Javascript -->
+                </select>
+                <div class="relative group">
+                    <button class="p-1.5 rounded hover:bg-gh-panel border border-transparent hover:border-gh-border transition-colors text-gh-muted hover:text-gh-fg" title="Profile Options">
+                        <i class="ph-bold ph-dots-three-vertical text-lg"></i>
+                    </button>
+                    <div class="absolute right-0 top-full mt-1 w-48 bg-gh-panel border border-gh-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                        <button onclick="saveNewProfile()" class="w-full text-left px-4 py-2 text-sm hover:bg-gh-bg border-b border-gh-border"><i class="ph-bold ph-plus"></i> Save as New Profile</button>
+                        <button onclick="deleteCurrentProfile()" class="w-full text-left px-4 py-2 text-sm hover:bg-gh-bg border-b border-gh-border text-gh-danger"><i class="ph-bold ph-trash"></i> Delete Current</button>
+                        <button onclick="exportProfiles()" class="w-full text-left px-4 py-2 text-sm hover:bg-gh-bg"><i class="ph-bold ph-export"></i> Export All (JSON)</button>
+                        <button onclick="document.getElementById('importProfileInput').click()" class="w-full text-left px-4 py-2 text-sm hover:bg-gh-bg"><i class="ph-bold ph-import"></i> Import (JSON)</button>
+                    </div>
+                </div>
+                <!-- Hidden file input for importing JSON -->
+                <input type="file" id="importProfileInput" accept=".json" class="hidden">
+            </div>
+        </div>
+
+        <hr class="border-gh-border my-4">
+
+        <div class="space-y-6 flex-1">
+            <!-- Search Rules -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-sm font-bold tracking-wide uppercase opacity-80">Active Rules</label>
+                    <button onclick="confirmReset()" class="text-xs text-gh-muted hover:text-gh-danger transition-colors flex items-center gap-1" title="Clear all active settings">
+                        <i class="ph-bold ph-arrow-counter-clockwise"></i> Reset View
+                    </button>
+                </div>
+                
+                <div id="rulesContainer" class="space-y-3 mb-4">
+                    <!-- Rule cards injected via JavaScript -->
+                </div>
+
+                <div class="flex gap-2 border-t border-dashed border-gh-border pt-4">
+                    <button onclick="addRule()" class="flex-1 py-2 border border-gh-border rounded-lg text-sm font-medium hover:bg-gh-bg hover:border-gh-accent hover:text-gh-accent transition-colors flex items-center justify-center gap-2">
+                        <i class="ph-bold ph-plus"></i> Add New Blank Rule
+                    </button>
+                    
+                    <!-- Presets Dropdown -->
+                    <div class="relative group">
+                        <button class="px-3 py-2 border border-gh-border rounded-lg text-sm font-medium hover:bg-gh-bg hover:border-gh-accent hover:text-gh-accent transition-colors flex items-center justify-center gap-2" title="Add Pre-built Regex Patterns">
+                            <i class="ph-bold ph-magic-wand"></i> Presets
+                        </button>
+                        <div class="absolute right-0 bottom-full mb-2 w-56 bg-gh-panel border border-gh-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                            <button onclick="addPreset('Email Addresses', '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b', '#bae6fd')" class="w-full text-left px-4 py-3 text-sm hover:bg-gh-bg border-b border-gh-border flex items-center gap-2"><i class="ph-fill ph-envelope"></i> Emails</button>
+                            <button onclick="addPreset('Phone Numbers', '\\b(?:\\+?\\d{1,3}[-.\\s]?)?(?:\\(?\\d{2,4}\\)?[-.\\s]?)?\\d{3,4}[-.\\s]?\\d{4}\\b', '#bbf7d0')" class="w-full text-left px-4 py-3 text-sm hover:bg-gh-bg border-b border-gh-border flex items-center gap-2"><i class="ph-fill ph-phone"></i> Phone Numbers</button>
+                            <button onclick="addPreset('Dates', '\\b(?:\\d{1,4}[-/.\\s]\\d{1,2}[-/.\\s]\\d{1,4}|\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+\\d{1,4})\\b', '#fed7aa')" class="w-full text-left px-4 py-3 text-sm hover:bg-gh-bg flex items-center gap-2"><i class="ph-fill ph-calendar"></i> Dates</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-gh-border">
+
+            <!-- Document Settings -->
+            <div class="space-y-4">
+                <label class="block text-sm font-bold tracking-wide uppercase opacity-80">Output Settings</label>
+                
+                <div class="bg-gh-bg p-3 rounded-lg border border-gh-border space-y-3">
+                    <div class="flex gap-2">
+                        <select id="nameModMode" class="bg-gh-panel border border-gh-border rounded p-1.5 text-xs outline-none focus:border-gh-accent cursor-pointer">
+                            <option value="prefix">Prefix</option>
+                            <option value="suffix">Suffix</option>
+                        </select>
+                        <input type="text" id="nameModText" placeholder="e.g. Reviewed_" class="flex-1 bg-gh-panel border border-gh-border rounded p-1.5 text-xs outline-none focus:border-gh-accent placeholder-opacity-50">
+                    </div>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer select-none">
+                        <input type="checkbox" id="autoIncrement" checked class="accent-gh-accent w-3.5 h-3.5">
+                        Auto-increment batch numbers (e.g. _1, _2)
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold mb-1 flex items-center justify-between opacity-80">
+                        Author Metadata
+                    </label>
+                    <input type="text" id="authorName" placeholder="e.g. Annotator Bot" class="w-full bg-gh-bg border border-gh-border rounded p-2 text-sm focus:outline-none focus:border-gh-accent transition-colors placeholder-opacity-50">
+                </div>
+                <p class="text-[10px] text-gh-muted leading-tight mt-2">
+                    <i class="ph-bold ph-info"></i> Iris will <strong>never</strong> overwrite your original files. It safely generates a new copy.
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
+            <span>&copy; 2026 Seumas</span>
+            <span>v0.1.0</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 md:p-8 flex flex-col h-full overflow-hidden transition-colors max-w-6xl mx-auto w-full relative">
+        
+        <!-- Drag & Drop Zone -->
+        <div id="dropzone" class="border-2 border-dashed border-gh-border rounded-2xl bg-gh-panel p-6 flex flex-col items-center justify-center text-center transition-all duration-200 shrink-0 hover:border-gh-accent hover:bg-gh-bg cursor-pointer min-h-[140px]">
+            <h3 class="text-lg font-bold mb-1">Queue Documents</h3>
+            <p class="text-sm opacity-70">Drag & drop multiple PDFs here, or click to browse</p>
+            <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
+        </div>
+
+        <!-- File Queue Area -->
+        <div class="mt-6 flex flex-col flex-1 min-h-0 bg-gh-panel rounded-2xl shadow-sm border border-gh-border overflow-hidden">
+            
+            <!-- Queue Toolbar -->
+            <div class="p-4 border-b border-gh-border bg-gh-bg flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
+                <h3 class="font-bold flex items-center gap-2">
+                    <i class="ph-bold ph-stack"></i> Processing Queue
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                    <button id="clearQueueBtn" onclick="clearQueue()" class="hidden px-4 py-2 text-sm font-bold text-gh-danger hover:bg-gh-danger/10 border border-transparent hover:border-gh-danger/30 rounded-lg transition-colors">Clear All</button>
+                    
+                    <button id="saveAllBtn" onclick="saveAllFiles()" class="hidden px-4 py-2 text-sm font-bold text-gh-success hover:bg-gh-success/10 border border-transparent hover:border-gh-success/30 rounded-lg transition-colors flex items-center gap-1"><i class="ph-bold ph-download-simple"></i> Save All</button>
+
+                    <!-- Strip Action -->
+                    <button id="stripBtn" onclick="toggleStripModal()" title="Removes Highlights, Underlines, Strikeouts, and Sticky Notes. Leaves Links and Forms untouched." class="hidden bg-transparent border border-gh-danger text-gh-danger hover:bg-gh-danger hover:text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="ph-bold ph-eraser"></i> Strip Annotations...
+                    </button>
+
+                    <!-- Annotate Action -->
+                    <button id="processBtn" onclick="processQueueAnnotate()" class="hidden bg-gh-accent hover:bg-gh-accent/80 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="ph-bold ph-highlighter"></i> Annotate Files
+                    </button>
+                </div>
+            </div>
+
+            <div id="queueContainer" class="flex-1 overflow-y-auto p-3 space-y-3 bg-gh-bg/50">
+                <div id="emptyQueueMsg" class="h-full flex flex-col items-center justify-center opacity-40">
+                    <i class="ph-thin ph-files text-5xl mb-2"></i>
+                    <p class="text-sm font-medium">Ready for PDFs.</p>
+                </div>
+                <!-- File Cards Injected Here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+
+    <!-- Strip Annotations Config Modal -->
+    <div id="stripModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-gh-panel rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-gh-border flex flex-col">
+            <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="ph-bold ph-eraser text-gh-danger"></i> Strip Annotations</h2>
+                <button onclick="toggleStripModal()" class="opacity-50 hover:opacity-100 hover:text-gh-danger transition-colors"><i class="ph-bold ph-x text-xl"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <p class="text-sm opacity-80">Choose which annotations to wipe from the queued PDFs. (Links and Forms are always preserved).</p>
+                
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
+                        <input type="radio" name="stripMode" value="all" checked class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
+                        <span class="text-sm font-bold">Strip All</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
+                        <input type="radio" name="stripMode" value="author" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
+                        <span class="text-sm font-bold">By Author</span>
+                        <input type="text" id="stripAuthorName" placeholder="Exact Name..." class="hidden ml-2 flex-1 bg-gh-panel border border-gh-border rounded px-2 py-1 text-xs outline-none focus:border-gh-danger">
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer bg-gh-bg p-2 rounded border border-gh-border">
+                        <input type="radio" name="stripMode" value="color" class="accent-gh-danger w-4 h-4" onchange="toggleStripInputs()">
+                        <span class="text-sm font-bold">By Color</span>
+                        <input type="color" id="stripColorValue" value="#f1fa8c" class="hidden ml-2 w-8 h-8 rounded cursor-pointer p-0 border-0">
+                    </label>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gh-border bg-gh-bg flex justify-end gap-2">
+                <button onclick="toggleStripModal()" class="px-4 py-2 text-sm opacity-70 hover:opacity-100 font-medium">Cancel</button>
+                <button onclick="executeSelectiveStrip()" class="px-4 py-2 text-sm font-bold bg-gh-danger text-white rounded hover:bg-gh-danger/80 transition-colors">Confirm & Strip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help & About Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-gh-panel rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-gh-border flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="ph-fill ph-info text-gh-accent"></i> About Iris Annotator</h2>
+                <button onclick="toggleHelp()" class="opacity-50 hover:opacity-100 hover:text-gh-danger transition-colors"><i class="ph-bold ph-x text-xl"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-6 text-sm opacity-90 leading-relaxed">
+                
+                <div class="bg-gh-bg p-4 rounded-xl border border-gh-border">
+                    <p><strong>Iris Annotator</strong> is a high-performance, 100% local utility for adding permanent highlights, notes, and redaction-style markup to PDF documents en masse.</p>
+                    <p class="mt-2 text-xs opacity-70">Because Iris processes everything directly in your browser's memory, your private manuscripts and sensitive documents never leave your computer.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-target text-gh-accent"></i> Match Types Explained</h3>
+                    <ul class="space-y-2 list-disc pl-5">
+                        <li><b>Partial (abc):</b> Matches text anywhere. "doc" highlights inside "<b>doc</b>ument".</li>
+                        <li><b>Exact (""):</b> Matches whole words only. "doc" <i>only</i> matches the word "doc".</li>
+                        <li><b>Regex (.*):</b> Uses Regular Expressions for advanced pattern finding. <br>
+                            <a href="https://regex101.com/" target="_blank" class="text-gh-link hover:underline inline-flex items-center gap-1 mt-1"><i class="ph-bold ph-arrow-square-out"></i> Learn/Test Regex here</a>
+                        </li>
+                        <li><b>Case Sensitive (Aa):</b> Forces exact casing (e.g. "Apple" will not match "apple").</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-eraser text-gh-danger"></i> Selective Stripping</h3>
+                    <p>Clicking "Strip Annotations" allows you to scan PDFs and permanently delete Highlights, Underlines, Strikeouts, and Sticky Notes. You can strip everything, or only remove annotations made by a specific Author or in a specific Color.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-folder-open text-gh-success"></i> Workspace Profiles</h3>
+                    <p>Save your rules, author tags, and naming settings as Profiles. Switch between setups instantly, or export/import them as JSON files to back up your workflow or share with team members.</p>
+                </div>
+
+                <div class="pt-4 border-t border-gh-border">
+                    <h3 class="font-bold opacity-60 mb-2 uppercase text-xs tracking-wider">Open Source Credits</h3>
+                    <p class="text-xs opacity-70">Built with ❤️ utilizing: 
+                        <a href="https://mozilla.github.io/pdf.js/" target="_blank" class="text-gh-link hover:underline">PDF.js (Mozilla)</a>, 
+                        <a href="https://pdf-lib.js.org/" target="_blank" class="text-gh-link hover:underline">PDF-Lib</a>, 
+                        and <a href="https://phosphoricons.com/" target="_blank" class="text-gh-link hover:underline">Phosphor Icons</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="previewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex flex-col p-4 md:p-8 transition-opacity">
+        <div class="flex justify-between items-center mb-4 text-white">
+            <h2 class="text-xl font-bold flex items-center gap-2"><i class="ph-fill ph-eye text-gh-accent"></i> Document Preview</h2>
+            <button onclick="togglePreview()" class="hover:text-gh-danger transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm flex items-center gap-2 font-bold">
+                <i class="ph-bold ph-x text-xl"></i> Close
+            </button>
+        </div>
+        <div class="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl border border-gh-border relative">
+            <iframe id="pdfIframe" class="w-full h-full border-0"></iframe>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==========================================
+         JAVASCRIPT APPLICATION LOGIC
+         ========================================== -->
+    <script>
+        // Tell PDF.js where to find its web worker. This is required for local browser execution.
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // --- Application State ---
+        const paletteColors = [
+            '#f1fa8c', '#ffb86c', '#ff79c6', '#bd93f9', '#8be9fd', '#50fa7b', '#ff5555', 
+            '#f8f8f2', '#e9d5ff', '#bbf7d0', '#fef08a', '#fbcfe8', '#bae6fd', '#fed7aa', 
+            '#d9f99d', '#fecaca', '#bfdbfe', '#e5e7eb', '#fcd34d', '#a78bfa', '#6ee7b7'  
+        ];
+        const defaultColors = ['#fef08a', '#bbf7d0', '#fbcfe8', '#bae6fd', '#fed7aa']; 
+        
+        let allProfiles = {
+            "Default": { rules: [], authorName: "", nameModMode: "prefix", nameModText: "", autoIncrement: true }
+        };
+        let currentProfileKey = "Default";
+        
+        let rules = [];
+        let ruleCounter = 0;
+        let lastDeletedRule = null;
+        let lastResetState = null;
+        
+        let fileQueue = []; 
+        let isProcessing = false;
+
+        // --- Audio Synthesizer (Completion Ding) ---
+        let audioCtx = null;
+        const volSlider = document.getElementById('volSlider');
+        const volIcon = document.getElementById('volIcon');
+        
+        volSlider.addEventListener('input', (e) => {
+            const v = parseFloat(e.target.value);
+            if (v === 0) {
+                volIcon.className = "ph-fill ph-speaker-x";
+            } else if (v < 0.5) {
+                volIcon.className = "ph-fill ph-speaker-low";
+            } else {
+                volIcon.className = "ph-fill ph-speaker-high";
+            }
+            localStorage.setItem('irisVol', v);
+        });
+
+        function playDing() {
+            const vol = parseFloat(volSlider.value);
+            if (vol <= 0) return; // Muted
+            
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const playNote = (freq, startTime, duration) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine'; 
+                osc.frequency.setValueAtTime(freq, startTime);
+                
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(vol, startTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                
+                osc.connect(gain); 
+                gain.connect(audioCtx.destination);
+                osc.start(startTime); 
+                osc.stop(startTime + duration);
+            };
+            
+            const now = audioCtx.currentTime;
+            playNote(523.25, now, 0.4);        // C5 note
+            playNote(659.25, now + 0.15, 0.8); // E5 note (played slightly after)
+        }
+
+        // --- Theme Management ---
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+
+        function updateThemeIcon() { 
+            themeIcon.className = document.documentElement.classList.contains('dark') ? 'ph-bold ph-sun' : 'ph-bold ph-moon'; 
+        }
+        
+        // Initialize Theme icon
+        updateThemeIcon();
+        
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+
+        // --- Data Persistence (LocalStorage) ---
+        function saveSettings() {
+            allProfiles[currentProfileKey] = {
+                rules: JSON.parse(JSON.stringify(rules)),
+                authorName: document.getElementById('authorName').value,
+                nameModMode: document.getElementById('nameModMode').value,
+                nameModText: document.getElementById('nameModText').value,
+                autoIncrement: document.getElementById('autoIncrement').checked
+            };
+            localStorage.setItem('irisProfiles', JSON.stringify(allProfiles));
+            localStorage.setItem('irisCurrentProfile', currentProfileKey);
+        }
+
+        function loadSettings() {
+            try {
+                const savedVol = localStorage.getItem('irisVol');
+                if (savedVol !== null) {
+                    volSlider.value = savedVol;
+                }
+                volSlider.dispatchEvent(new Event('input')); // Trigger icon update
+
+                const savedProfiles = JSON.parse(localStorage.getItem('irisProfiles'));
+                if (savedProfiles && Object.keys(savedProfiles).length > 0) {
+                    allProfiles = savedProfiles;
+                }
+                
+                const savedKey = localStorage.getItem('irisCurrentProfile');
+                if (savedKey && allProfiles[savedKey]) {
+                    currentProfileKey = savedKey;
+                } else {
+                    currentProfileKey = Object.keys(allProfiles)[0];
+                }
+                
+                applyProfileToUI();
+                renderProfileSelect();
+            } catch (e) { 
+                addRule(); 
+                renderProfileSelect();
+            }
+        }
+
+        // Input listeners for auto-saving config
+        document.getElementById('authorName').addEventListener('input', saveSettings);
+        document.getElementById('nameModMode').addEventListener('change', saveSettings);
+        document.getElementById('nameModText').addEventListener('input', saveSettings);
+        document.getElementById('autoIncrement').addEventListener('change', saveSettings);
+
+        // --- Profile Management ---
+        function renderProfileSelect() {
+            const select = document.getElementById('profileSelect');
+            select.innerHTML = '';
+            
+            Object.keys(allProfiles).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = key;
+                if (key === currentProfileKey) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+        }
+
+        document.getElementById('profileSelect').addEventListener('change', (e) => {
+            currentProfileKey = e.target.value;
+            applyProfileToUI();
+            saveSettings();
+            showToast(`Loaded profile: ${currentProfileKey}`);
+        });
+
+        function applyProfileToUI() {
+            const activeProfile = allProfiles[currentProfileKey];
+            
+            if (activeProfile.rules && activeProfile.rules.length > 0) {
+                rules = JSON.parse(JSON.stringify(activeProfile.rules));
+                ruleCounter = Math.max(...rules.map(r => parseInt(r.id.split('-')[1]))) || 0;
+            } else {
+                rules = []; 
+                ruleCounter = 0; 
+                addRule();
+            }
+            
+            document.getElementById('authorName').value = activeProfile.authorName || '';
+            document.getElementById('nameModMode').value = activeProfile.nameModMode || 'prefix';
+            document.getElementById('nameModText').value = activeProfile.nameModText || '';
+            document.getElementById('autoIncrement').checked = activeProfile.autoIncrement !== false;
+            
+            renderRules();
+        }
+
+        function saveNewProfile() {
+            const name = prompt("Enter a name for the new workspace profile:");
+            if (!name || name.trim() === '') return;
+            
+            const safeName = name.trim();
+            if (allProfiles[safeName]) {
+                if(!confirm(`Profile "${safeName}" already exists. Overwrite?`)) return;
+            }
+            
+            currentProfileKey = safeName;
+            saveSettings();
+            renderProfileSelect();
+            showToast(`Profile "${safeName}" created.`);
+        }
+
+        function deleteCurrentProfile() {
+            const keys = Object.keys(allProfiles);
+            if (keys.length <= 1) { 
+                showToast("Cannot delete the only remaining profile.", null, true); 
+                return; 
+            }
+            
+            if (confirm(`Are you sure you want to delete profile "${currentProfileKey}"?`)) {
+                delete allProfiles[currentProfileKey];
+                currentProfileKey = Object.keys(allProfiles)[0];
+                applyProfileToUI();
+                saveSettings();
+                renderProfileSelect();
+                showToast("Profile deleted.");
+            }
+        }
+
+        function exportProfiles() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allProfiles, null, 2));
+            const a = document.createElement('a');
+            a.href = dataStr; 
+            a.download = "Iris_Profiles_Backup.json";
+            
+            document.body.appendChild(a); 
+            a.click(); 
+            document.body.removeChild(a);
+        }
+
+        document.getElementById('importProfileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const imported = JSON.parse(evt.target.result);
+                    if (typeof imported === 'object' && Object.keys(imported).length > 0) {
+                        allProfiles = { ...allProfiles, ...imported };
+                        saveSettings();
+                        renderProfileSelect();
+                        showToast(`Successfully imported ${Object.keys(imported).length} profile(s).`);
+                    }
+                } catch (err) { 
+                    showToast("Invalid JSON file.", null, true); 
+                }
+            };
+            reader.readAsText(file);
+            this.value = ''; // Reset input to allow re-importing the same file
+        });
+
+
+        // --- UI Toasts ---
+        function showToast(message, undoCallback = null, isWarning = false) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const borderClass = isWarning ? 'border-gh-warning' : 'border-gh-border';
+            toast.className = `bg-gh-panel text-gh-fg border ${borderClass} px-4 py-3 rounded-lg shadow-xl flex items-center gap-4 text-sm transform transition-all duration-300 translate-y-10 opacity-0 pointer-events-auto`;
+            
+            let html = `<span class="flex items-center gap-2">${isWarning ? '<i class="ph-fill ph-warning text-gh-warning"></i>' : ''}${message}</span>`;
+            
+            if (undoCallback) {
+                html += `<button class="text-gh-link font-bold hover:text-gh-accent transition-colors underline decoration-gh-link">Undo</button>`;
+            }
+            
+            toast.innerHTML = html;
+            container.appendChild(toast);
+
+            if (undoCallback) {
+                toast.querySelector('button').addEventListener('click', () => { 
+                    undoCallback(); 
+                    toast.remove(); 
+                });
+            }
+
+            // Animate In
+            setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10);
+            
+            // Animate Out & Destroy
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // --- Rule Construction ---
+        function addRule(term = '', exact = false, color = null, isRegex = false, note = '') {
+            ruleCounter++;
+            rules.push({ 
+                id: `rule-${ruleCounter}`, 
+                term: term, 
+                exact: exact, 
+                isRegex: isRegex, 
+                caseSensitive: false, 
+                note: note, 
+                presetName: null, 
+                color: color || defaultColors[(ruleCounter - 1) % defaultColors.length] 
+            });
+            renderRules(); 
+            saveSettings();
+        }
+
+        function addPreset(name, pattern, color) {
+            // Overwrite if only one blank rule exists
+            if (rules.length === 1 && rules[0].term === '' && !rules[0].presetName) {
+                rules.pop();
+            }
+            
+            ruleCounter++;
+            rules.push({ 
+                id: `rule-${ruleCounter}`, 
+                term: pattern, 
+                exact: false, 
+                isRegex: true, 
+                caseSensitive: false, 
+                note: '', 
+                presetName: name, 
+                color: color 
+            });
+            
+            renderRules(); 
+            saveSettings();
+            showToast(`Added ${name} preset.`);
+        }
+
+        function removeRule(id) {
+            const index = rules.findIndex(r => r.id === id);
+            if (index > -1) {
+                lastDeletedRule = { index: index, rule: rules[index] };
+                rules.splice(index, 1);
+                
+                renderRules(); 
+                saveSettings();
+                
+                showToast("Rule removed.", () => {
+                    rules.splice(lastDeletedRule.index, 0, lastDeletedRule.rule);
+                    renderRules(); 
+                    saveSettings();
+                });
+            }
+        }
+
+        function updateRule(id, key, value) {
+            const rule = rules.find(r => r.id === id);
+            if (rule) { 
+                rule[key] = value; 
+                saveSettings(); 
+            }
+        }
+
+        function revealPreset(id) {
+            const rule = rules.find(r => r.id === id);
+            if (rule) { 
+                rule.presetName = null; 
+                renderRules(); 
+                saveSettings(); 
+            }
+        }
+
+        function setMatchType(id, type) {
+            const rule = rules.find(r => r.id === id);
+            if (rule) {
+                if(type === 'case') {
+                    rule.caseSensitive = !rule.caseSensitive;
+                } else { 
+                    rule.exact = (type === 'exact'); 
+                    rule.isRegex = (type === 'regex'); 
+                }
+                renderRules(); 
+                saveSettings();
+            }
+        }
+
+        // --- Custom Color Palette Logic ---
+        function togglePalette(id) {
+            document.querySelectorAll('.palette-menu').forEach(el => { 
+                if(el.id !== `palette-${id}`) el.classList.add('hidden'); 
+            });
+            document.getElementById(`palette-${id}`).classList.toggle('hidden');
+        }
+
+        // Close palette if clicking outside of it
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.color-picker-wrapper')) {
+                document.querySelectorAll('.palette-menu').forEach(el => el.classList.add('hidden'));
+            }
+        });
+
+        // --- DOM Rendering for Rules ---
+        function renderRules() {
+            const container = document.getElementById('rulesContainer');
+            container.innerHTML = '';
+            
+            if (rules.length === 0) {
+                container.innerHTML = `<div class="text-center p-4 opacity-50 text-sm border border-dashed border-gh-border rounded-lg">No active rules.</div>`;
+                return;
+            }
+
+            rules.forEach(rule => {
+                const div = document.createElement('div');
+                div.className = 'rule-card flex flex-col gap-2 bg-gh-bg p-3 rounded-lg border border-gh-border shadow-sm group';
+                
+                // Helper classes for segmented match type buttons
+                const baseBtnClass = "px-2 py-1 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold";
+                const pAct = (!rule.exact && !rule.isRegex) ? "bg-gh-panel text-gh-fg shadow rounded" : "text-gh-muted hover:text-gh-fg";
+                const eAct = rule.exact ? "bg-gh-panel text-gh-fg shadow rounded" : "text-gh-muted hover:text-gh-fg";
+                const rAct = rule.isRegex ? "bg-gh-panel text-gh-fg shadow rounded" : "text-gh-muted hover:text-gh-fg";
+                const cAct = rule.caseSensitive ? "bg-gh-panel text-gh-accent shadow rounded" : "text-gh-muted hover:text-gh-fg";
+
+                let mainInputHTML = '';
+                
+                if (rule.presetName) {
+                    mainInputHTML = `
+                        <div class="w-full flex items-center justify-between bg-gh-panel border border-gh-border rounded px-3 py-1.5">
+                            <span class="text-sm font-bold flex items-center gap-2"><i class="ph-bold ph-magic-wand text-gh-accent"></i> Preset: ${rule.presetName}</span>
+                            <button onclick="revealPreset('${rule.id}')" class="text-xs text-gh-muted hover:text-gh-accent transition-colors underline">Reveal Pattern</button>
+                        </div>
+                    `;
+                } else {
+                    mainInputHTML = `
+                        <input type="text" placeholder="Type search phrase or regex..." value="${rule.term.replace(/"/g, '&quot;')}" 
+                            class="w-full bg-gh-panel border border-gh-border rounded px-3 py-2 text-sm font-mono outline-none focus:border-gh-accent transition-colors placeholder-opacity-40 font-bold"
+                            onchange="updateRule('${rule.id}', 'term', this.value)"
+                            onkeyup="updateRule('${rule.id}', 'term', this.value)">
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="flex flex-col gap-2">
+                        ${mainInputHTML}
+                        
+                        <div class="flex items-center justify-between gap-2">
+                            <!-- Tool Toggles -->
+                            <div class="flex bg-gh-border/30 p-0.5 rounded gap-0.5">
+                                <div onclick="setMatchType('${rule.id}', 'case')" class="${baseBtnClass} ${cAct}" title="Case Sensitive">Aa</div>
+                                <div class="w-px bg-gh-border mx-1 my-1"></div>
+                                <div onclick="setMatchType('${rule.id}', 'partial')" class="${baseBtnClass} ${pAct} ${rule.presetName ? 'hidden' : ''}" title="Partial Match">abc</div>
+                                <div onclick="setMatchType('${rule.id}', 'exact')" class="${baseBtnClass} ${eAct} ${rule.presetName ? 'hidden' : ''}" title="Exact Match">" "</div>
+                                <div onclick="setMatchType('${rule.id}', 'regex')" class="${baseBtnClass} ${rAct} ${rule.presetName ? 'hidden' : ''}" title="Regex Match">.*</div>
+                            </div>
+                            
+                            <!-- Color & Trash Actions -->
+                            <div class="flex items-center gap-2 shrink-0">
+                                <div class="relative color-picker-wrapper">
+                                    <button onclick="togglePalette('${rule.id}')" class="w-6 h-6 rounded border border-gh-border shadow-sm cursor-pointer hover:scale-105 transition-transform" style="background-color: ${rule.color}" title="Pick Color"></button>
+                                    
+                                    <div id="palette-${rule.id}" class="palette-menu hidden absolute bottom-full right-0 mb-2 bg-gh-panel border border-gh-border rounded-lg shadow-xl z-50 p-2 grid grid-cols-7 gap-1.5 w-max">
+                                        ${paletteColors.map(c => `
+                                            <div onclick="updateRule('${rule.id}', 'color', '${c}'); togglePalette('${rule.id}')" 
+                                                 class="w-5 h-5 rounded cursor-pointer hover:scale-110 transition-transform border border-gh-border shadow-sm" 
+                                                 style="background-color: ${c}"></div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <button onclick="removeRule('${rule.id}')" class="p-1.5 text-gh-muted hover:text-gh-danger hover:bg-gh-danger/10 rounded transition-colors" title="Delete Rule">
+                                    <i class="ph-bold ph-trash text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hover Note Input -->
+                    <div class="flex items-center gap-2 opacity-70 focus-within:opacity-100 transition-opacity border-t border-gh-border/50 pt-2 mt-1">
+                        <i class="ph-bold ph-note-pencil text-gh-muted"></i>
+                        <input type="text" placeholder="Hover sticky note (optional)..." value="${rule.note || ''}" 
+                            class="flex-1 bg-transparent text-xs outline-none py-1"
+                            onchange="updateRule('${rule.id}', 'note', this.value)"
+                            onkeyup="updateRule('${rule.id}', 'note', this.value)">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function confirmReset() {
+            // Backup current state before destroying
+            lastResetState = {
+                rules: JSON.parse(JSON.stringify(rules)),
+                authorName: document.getElementById('authorName').value,
+                nameModText: document.getElementById('nameModText').value,
+                nameModMode: document.getElementById('nameModMode').value,
+                autoIncrement: document.getElementById('autoIncrement').checked
+            };
+            
+            rules = []; 
+            document.getElementById('authorName').value = ''; 
+            document.getElementById('nameModText').value = '';
+            ruleCounter = 0; 
+            
+            addRule(); 
+            saveSettings();
+            showToast("View cleared.", undoReset);
+        }
+
+        function undoReset() {
+            if (lastResetState) {
+                rules = lastResetState.rules;
+                document.getElementById('authorName').value = lastResetState.authorName;
+                document.getElementById('nameModText').value = lastResetState.nameModText;
+                document.getElementById('nameModMode').value = lastResetState.nameModMode;
+                document.getElementById('autoIncrement').checked = lastResetState.autoIncrement;
+                
+                ruleCounter = Math.max(...rules.map(r => parseInt(r.id.split('-')[1]))) || 0;
+                
+                renderRules(); 
+                saveSettings(); 
+                lastResetState = null;
+            }
+        }
+
+        // Initialize App
+        loadSettings();
+
+        // --- Modals Toggles ---
+        function toggleHelp() { 
+            document.getElementById('helpModal').classList.toggle('hidden'); 
+        }
+        
+        function togglePreview(url = null) {
+            const modal = document.getElementById('previewModal');
+            if (url) { 
+                document.getElementById('pdfIframe').src = url; 
+                modal.classList.remove('hidden'); 
+            } else { 
+                modal.classList.add('hidden'); 
+                document.getElementById('pdfIframe').src = ''; 
+            }
+        }
+        
+        function toggleStripModal() {
+            document.getElementById('stripModal').classList.toggle('hidden');
+        }
+        
+        function toggleStripInputs() {
+            const mode = document.querySelector('input[name="stripMode"]:checked').value;
+            document.getElementById('stripAuthorName').classList.toggle('hidden', mode !== 'author');
+            document.getElementById('stripColorValue').classList.toggle('hidden', mode !== 'color');
+        }
+
+        // --- Drag & Drop Queue Logic ---
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const queueContainer = document.getElementById('queueContainer');
+        const processBtn = document.getElementById('processBtn');
+        const stripBtn = document.getElementById('stripBtn');
+        const clearQueueBtn = document.getElementById('clearQueueBtn');
+
+        // Prevent default browser drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+            dropzone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); });
+        });
+        
+        // Add visual cues
+        ['dragenter', 'dragover'].forEach(e => {
+            dropzone.addEventListener(e, () => { if(!isProcessing) dropzone.classList.add('drop-active'); });
+        });
+        ['dragleave', 'drop'].forEach(e => {
+            dropzone.addEventListener(e, () => dropzone.classList.remove('drop-active'));
+        });
+        
+        // Handlers
+        dropzone.addEventListener('click', () => { if(!isProcessing) fileInput.click(); });
+        dropzone.addEventListener('drop', (e) => { if(!isProcessing) handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', function() { if(!isProcessing) handleFiles(this.files); });
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type === "application/pdf") {
+                    // Browser memory safety warning
+                    if (file.size > 150 * 1024 * 1024) {
+                        showToast(`Warning: "${file.name}" is over 150MB. May crash tab due to RAM limits.`, null, true);
+                    }
+                    
+                    fileQueue.push({ 
+                        id: 'file-' + Date.now() + Math.random().toString(36).substr(2, 5), 
+                        file: file, 
+                        status: 'pending' 
+                    });
+                }
+            });
+            renderQueue();
+        }
+
+        function clearQueue() {
+            if(isProcessing) return;
+            // Clean up memory leaks before clearing
+            fileQueue.forEach(fileRecord => { 
+                if(fileRecord.blobUrl) URL.revokeObjectURL(fileRecord.blobUrl); 
+            });
+            fileQueue = []; 
+            renderQueue();
+        }
+
+        function removeFile(id) {
+            if(isProcessing) return;
+            const index = fileQueue.findIndex(f => f.id === id);
+            
+            if(index > -1) {
+                if(fileQueue[index].blobUrl) URL.revokeObjectURL(fileQueue[index].blobUrl);
+                fileQueue.splice(index, 1); 
+                renderQueue();
+            }
+        }
+
+        function copySummary(id) {
+            const fileRecord = fileQueue.find(x => x.id === id);
+            if (!fileRecord || !fileRecord.aggregatedMatches) return;
+            
+            let text = `Iris Extraction Report\nDocument: ${fileRecord.file.name}\n\n`;
+            
+            for (const [ruleId, pageData] of Object.entries(fileRecord.aggregatedMatches)) {
+                const rule = rules.find(r => r.id === ruleId);
+                const termName = rule ? (rule.presetName || rule.term) : 'Unknown';
+                
+                let totalHits = Object.values(pageData).reduce((sum, p) => sum + p.count, 0);
+                
+                if (totalHits > 0) {
+                    text += `--- Term: "${termName}" (${totalHits} matches) ---\n`;
+                    for (const [pageNum, data] of Object.entries(pageData)) {
+                        text += `Page ${pageNum}:\n`;
+                        data.snippets.forEach(snippet => text += `  > ${snippet}\n`);
+                    }
+                    text += '\n';
+                }
+            }
+            navigator.clipboard.writeText(text).then(() => showToast("Report copied to clipboard!"));
+        }
+
+        function renderQueue() {
+            document.getElementById('emptyQueueMsg').classList.toggle('hidden', fileQueue.length > 0);
+            processBtn.classList.toggle('hidden', fileQueue.length === 0);
+            stripBtn.classList.toggle('hidden', fileQueue.length === 0);
+            clearQueueBtn.classList.toggle('hidden', fileQueue.length === 0);
+            
+            const doneCount = fileQueue.filter(f => f.status === 'done' || f.status === 'stripped').length;
+            document.getElementById('saveAllBtn').classList.toggle('hidden', doneCount === 0);
+
+            fileQueue.forEach(fileRecord => {
+                let card = document.getElementById(fileRecord.id);
+                if (!card) {
+                    card = document.createElement('div');
+                    card.id = fileRecord.id;
+                    card.className = 'bg-gh-panel border border-gh-border rounded-lg p-4 shadow-sm flex flex-col gap-3';
+                    queueContainer.appendChild(card);
+                }
+
+                let statusHTML = ''; 
+                let logHTML = ''; 
+                let actionHTML = `<button onclick="removeFile('${fileRecord.id}')" class="text-gh-muted hover:text-gh-danger"><i class="ph-bold ph-x"></i></button>`;
+
+                if (fileRecord.status === 'processing') {
+                    statusHTML = `
+                        <div class="w-full bg-gh-bg h-1.5 rounded overflow-hidden mt-1">
+                            <div id="prog-${fileRecord.id}" class="h-full bg-gh-accent" style="width: 0%"></div>
+                        </div>`;
+                    actionHTML = `<span class="text-xs font-bold animate-pulse text-gh-accent">Processing...</span>`;
+                    
+                } else if (fileRecord.status === 'done' || fileRecord.status === 'stripped') {
+                    const isStrip = fileRecord.status === 'stripped';
+                    
+                    actionHTML = `
+                        <div class="flex gap-2">
+                            ${!isStrip ? `<button onclick="copySummary('${fileRecord.id}')" class="text-xs font-bold px-3 py-1.5 bg-gh-bg hover:bg-gh-border rounded transition-colors text-gh-fg" title="Copy Report"><i class="ph-bold ph-clipboard"></i></button>` : ''}
+                            <button onclick="togglePreview('${fileRecord.blobUrl}')" class="text-xs font-bold px-3 py-1.5 bg-gh-accent hover:bg-gh-accent/80 text-white rounded transition-colors">Preview</button>
+                            <button onclick="downloadFile('${fileRecord.id}', ${isStrip})" class="text-xs font-bold px-3 py-1.5 bg-gh-success hover:bg-gh-success/80 text-white rounded transition-colors flex items-center gap-1"><i class="ph-bold ph-download-simple"></i> Save</button>
+                        </div>
+                    `;
+                    
+                    if (!isStrip && fileRecord.aggregatedMatches) {
+                        logHTML = `<div class="bg-gh-bg p-3 rounded-md text-sm mt-2 border border-gh-border">`;
+                        let hasMatches = false;
+                        
+                        for (const [ruleId, pageData] of Object.entries(fileRecord.aggregatedMatches)) {
+                            const rule = rules.find(r => r.id === ruleId);
+                            const total = Object.values(pageData).reduce((sum, p) => sum + p.count, 0);
+                            
+                            if (total > 0) {
+                                hasMatches = true;
+                                logHTML += `
+                                    <details class="mb-1 group">
+                                        <summary class="font-bold flex items-center gap-2 hover:bg-gh-panel p-1 rounded transition-colors">
+                                            <i class="ph-bold ph-caret-right transition-transform group-open:rotate-90"></i>
+                                            <span class="px-1.5 py-0.5 rounded text-xs text-gh-fg" style="background-color: ${rule.color}">${rule.presetName || rule.term}</span>
+                                            <span>${total} match(es)</span>
+                                        </summary>
+                                        <ul class="pl-8 text-xs opacity-70 mt-1 space-y-0.5 pb-2">
+                                `;
+                                for (const [pageNum, data] of Object.entries(pageData)) {
+                                    logHTML += `<li>Page ${pageNum}: ${data.count}</li>`;
+                                }
+                                logHTML += `</ul></details>`;
+                            }
+                        }
+                        if (!hasMatches) {
+                            logHTML += `<span class="opacity-50">No matches found.</span>`;
+                        }
+                        logHTML += `</div>`;
+                    } else if (isStrip) {
+                        logHTML = `<div class="text-xs text-gh-success font-bold mt-2"><i class="ph-bold ph-check"></i> Annotations safely processed.</div>`;
+                    }
+                } else if (fileRecord.status === 'error') {
+                    actionHTML = `<span class="text-xs font-bold text-gh-danger">Failed</span> <button onclick="removeFile('${fileRecord.id}')" class="ml-2 text-gh-muted hover:text-gh-fg"><i class="ph-bold ph-x"></i></button>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <i class="ph-fill ph-file-pdf text-gh-danger text-2xl shrink-0"></i>
+                            <h3 class="font-bold truncate text-sm" title="${fileRecord.file.name}">${fileRecord.file.name}</h3>
+                        </div>
+                        ${actionHTML}
+                    </div>
+                    ${statusHTML}
+                    ${logHTML}
+                `;
+            });
+
+            // Cleanup DOM nodes that no longer exist in the fileQueue array
+            Array.from(queueContainer.children).forEach(child => {
+                if (child.id !== 'emptyQueueMsg' && !fileQueue.find(f => f.id === child.id)) {
+                    child.remove();
+                }
+            });
+        }
+
+        function downloadFile(id, isStrip = false) {
+            const fileRecord = fileQueue.find(x => x.id === id);
+            if (!fileRecord || !fileRecord.blobUrl) return;
+            
+            const anchor = document.createElement('a'); 
+            anchor.href = fileRecord.blobUrl;
+            
+            const modMode = document.getElementById('nameModMode').value;
+            const modText = document.getElementById('nameModText').value.trim();
+            const autoInc = document.getElementById('autoIncrement').checked;
+            
+            const baseName = fileRecord.file.name.replace('.pdf','');
+            const doneFiles = fileQueue.filter(x => x.status === 'done' || x.status === 'stripped');
+            const fileIndex = doneFiles.indexOf(fileRecord);
+            const incrementStr = (autoInc && doneFiles.length > 1) ? `_${fileIndex + 1}` : '';
+
+            let defaultMod = isStrip ? 'STRIPPED_' : 'ANNOTATED_';
+            
+            if (modText) {
+                if (modMode === 'prefix') {
+                    anchor.download = `${modText}${baseName}${incrementStr}.pdf`;
+                } else {
+                    anchor.download = `${baseName}${modText}${incrementStr}.pdf`;
+                }
+            } else {
+                anchor.download = `${defaultMod}${baseName}${incrementStr}.pdf`;
+            }
+            
+            document.body.appendChild(anchor); 
+            anchor.click(); 
+            document.body.removeChild(anchor);
+        }
+
+        function saveAllFiles() {
+            const doneFiles = fileQueue.filter(f => f.status === 'done' || f.status === 'stripped');
+            if (doneFiles.length === 0) return;
+            
+            // Stagger downloads slightly so the browser doesn't block them as spam
+            doneFiles.forEach((fileObj, index) => { 
+                setTimeout(() => {
+                    downloadFile(fileObj.id, fileObj.status === 'stripped');
+                }, index * 300); 
+            });
+            showToast(`Triggered download for ${doneFiles.length} file(s).`);
+        }
+
+        // --- Processing Engines ---
+        
+        function executeSelectiveStrip() {
+            toggleStripModal();
+            const mode = document.querySelector('input[name="stripMode"]:checked').value;
+            const authorTarget = document.getElementById('stripAuthorName').value.trim();
+            const colorTarget = document.getElementById('stripColorValue').value;
+            
+            const config = { mode, authorTarget, colorTarget };
+            processQueueStrip(config);
+        }
+
+        // Helper to convert #RRGGBB to an array of floats [0.0 - 1.0] for PDFLib
+        function hexToRgbFloat(hex) {
+            return [
+                parseInt(hex.substr(1,2), 16) / 255, 
+                parseInt(hex.substr(3,2), 16) / 255, 
+                parseInt(hex.substr(5,2), 16) / 255
+            ];
+        }
+
+        async function processQueueStrip(config) {
+            const pending = fileQueue.filter(f => f.status === 'pending');
+            if (pending.length === 0) return;
+
+            // Lock UI
+            isProcessing = true; 
+            processBtn.disabled = true; 
+            stripBtn.disabled = true; 
+            clearQueueBtn.disabled = true;
+            document.getElementById('appIcon').classList.add('animate-iris');
+
+            const targetColorRgb = hexToRgbFloat(config.colorTarget);
+
+            for (let fileRecord of pending) {
+                fileRecord.status = 'processing'; 
+                renderQueue();
+                
+                try {
+                    const arrayBuffer = await fileRecord.file.arrayBuffer();
+                    const { PDFDocument, PDFName } = PDFLib;
+                    
+                    // Create a copy of the buffer to prevent memory detachment
+                    const pdfLibDoc = await PDFDocument.load(arrayBuffer.slice(0), { ignoreEncryption: true });
+                    const numPagesLib = pdfLibDoc.getPageCount();
+
+                    let requiresSave = false;
+
+                    for (let i = 0; i < numPagesLib; i++) {
+                        const prog = document.getElementById(`prog-${fileRecord.id}`);
+                        if (prog) {
+                            prog.style.width = `${((i+1) / numPagesLib) * 100}%`;
+                        }
+                        
+                        const page = pdfLibDoc.getPage(i);
+                        const annots = page.node.Annots();
+                        
+                        if (annots) {
+                            const newAnnots = [];
+                            
+                            for (let a = 0; a < annots.size(); a++) {
+                                const annotRef = annots.get(a);
+                                const annot = pdfLibDoc.context.lookup(annotRef);
+                                
+                                if (annot) {
+                                    const subtype = annot.get(PDFName.of('Subtype'))?.name;
+                                    
+                                    // Target specific visual markup annotations
+                                    if (['Highlight', 'Text', 'Underline', 'StrikeOut', 'Squiggly'].includes(subtype)) {
+                                        let shouldStrip = false;
+                                        
+                                        if (config.mode === 'all') {
+                                            shouldStrip = true;
+                                        } else if (config.mode === 'author') {
+                                            const tStr = annot.get(PDFName.of('T'));
+                                            const annotAuthor = tStr ? tStr.value : ''; 
+                                            if (annotAuthor.includes(config.authorTarget)) {
+                                                shouldStrip = true;
+                                            }
+                                        } else if (config.mode === 'color') {
+                                            const cArr = annot.get(PDFName.of('C'));
+                                            if (cArr && cArr.array.length >= 3) {
+                                                const r = cArr.get(0).value;
+                                                const g = cArr.get(1).value;
+                                                const b = cArr.get(2).value;
+                                                
+                                                // Tolerance check for floating point math inaccuracies
+                                                if (Math.abs(r - targetColorRgb[0]) < 0.05 && 
+                                                    Math.abs(g - targetColorRgb[1]) < 0.05 && 
+                                                    Math.abs(b - targetColorRgb[2]) < 0.05) {
+                                                    shouldStrip = true;
+                                                }
+                                            }
+                                        }
+
+                                        if (shouldStrip) {
+                                            requiresSave = true; // Drop it
+                                        } else {
+                                            newAnnots.push(annotRef); // Keep it
+                                        }
+                                    } else {
+                                        newAnnots.push(annotRef); // Keep important things like Links and Forms
+                                    }
+                                }
+                            }
+                            // Apply filtered array back to page
+                            page.node.set(PDFName.of('Annots'), pdfLibDoc.context.obj(newAnnots));
+                        }
+                        
+                        // Yield to the browser event loop every 10 pages so UI doesn't freeze
+                        if (i % 10 === 0) await new Promise(r => setTimeout(r, 5));
+                    }
+
+                    requiresSave = true; 
+                    if (requiresSave) {
+                        const pdfBytes = await pdfLibDoc.save();
+                        fileRecord.blobUrl = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
+                    }
+                    fileRecord.status = 'stripped';
+                    
+                } catch (err) { 
+                    console.error(err); 
+                    fileRecord.status = 'error'; 
+                }
+                renderQueue();
+            }
+
+            // Unlock UI
+            isProcessing = false; 
+            processBtn.disabled = false; 
+            stripBtn.disabled = false; 
+            clearQueueBtn.disabled = false;
+            document.getElementById('appIcon').classList.remove('animate-iris');
+            
+            playDing(); 
+            showToast("Stripping complete!");
+        }
+
+        async function processQueueAnnotate() {
+            const activeRules = rules.filter(r => r.term.trim().length > 0);
+            if (activeRules.length === 0) { 
+                showToast("Add at least one rule first."); 
+                return; 
+            }
+            
+            const pending = fileQueue.filter(f => f.status === 'pending');
+            if (pending.length === 0) return;
+
+            // Lock UI
+            isProcessing = true; 
+            processBtn.disabled = true; 
+            stripBtn.disabled = true; 
+            clearQueueBtn.disabled = true;
+            document.getElementById('appIcon').classList.add('animate-iris');
+
+            const author = document.getElementById('authorName').value.trim();
+
+            for (let fileRecord of pending) {
+                fileRecord.status = 'processing'; 
+                fileRecord.aggregatedMatches = {}; 
+                activeRules.forEach(r => fileRecord.aggregatedMatches[r.id] = {});
+                renderQueue();
+                
+                try {
+                    const arrayBuffer = await fileRecord.file.arrayBuffer();
+                    
+                    // PDF-Lib (for writing)
+                    const { PDFDocument } = PDFLib;
+                    const pdfLibDoc = await PDFDocument.load(arrayBuffer.slice(0), { ignoreEncryption: true });
+                    
+                    // PDF.js (for reading text)
+                    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                    const pdfjsDoc = await loadingTask.promise;
+                    
+                    let totalMatches = 0; 
+                    let requiresSave = false;
+
+                    for (let i = 1; i <= pdfjsDoc.numPages; i++) {
+                        const prog = document.getElementById(`prog-${fileRecord.id}`);
+                        if (prog) {
+                            prog.style.width = `${(i / pdfjsDoc.numPages) * 100}%`;
+                        }
+                        
+                        if (i % 5 === 0) await new Promise(r => setTimeout(r, 5));
+
+                        const pageMatches = await processPageAnnotate(i, pdfjsDoc, pdfLibDoc, activeRules, author);
+                        
+                        for (const [ruleId, pageData] of Object.entries(pageMatches)) {
+                            if (pageData.count > 0) {
+                                totalMatches += pageData.count;
+                                fileRecord.aggregatedMatches[ruleId][i] = pageData;
+                                requiresSave = true;
+                            }
+                        }
+                    }
+
+                    if (requiresSave) {
+                        const pdfBytes = await pdfLibDoc.save();
+                        fileRecord.blobUrl = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
+                    }
+                    fileRecord.status = 'done';
+                    
+                } catch (err) { 
+                    console.error(err); 
+                    fileRecord.status = 'error'; 
+                }
+                renderQueue();
+            }
+
+            // Unlock UI
+            isProcessing = false; 
+            processBtn.disabled = false; 
+            stripBtn.disabled = false; 
+            clearQueueBtn.disabled = false;
+            document.getElementById('appIcon').classList.remove('animate-iris');
+            
+            playDing(); 
+            showToast("Queue processing complete!");
+        }
+
+        async function processPageAnnotate(pageNum, pdfjsDoc, pdfLibDoc, activeRules, author) {
+            const page = await pdfjsDoc.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            const stats = {};
+            activeRules.forEach(r => stats[r.id] = { count: 0, snippets: [] });
+
+            // If page has no extractable text, skip early
+            if (!textContent.items || textContent.items.length === 0) return stats;
+
+            let fullText = ""; 
+            const charMap = [];
+            
+            // Build a contiguous text string for searching, while mapping 
+            // each character back to its original PDF text fragment object.
+            textContent.items.forEach(item => {
+                const str = item.str; 
+                if (!str) return;
+                
+                for (let c = 0; c < str.length; c++) {
+                    charMap.push({ item: item, charIdx: c });
+                }
+                
+                fullText += str;
+                
+                // Inject spaces at the end of lines or blocks to prevent 
+                // words from two separate blocks gluing together.
+                if (item.hasEOL || !str.endsWith(' ')) { 
+                    fullText += " "; 
+                    charMap.push({ item: null, isSpace: true }); 
+                }
+            });
+
+            const matchesToHighlight = [];
+
+            for (const rule of activeRules) {
+                let regexStr = rule.term;
+                
+                // Escape special characters if not in Regex mode
+                if (!rule.isRegex) {
+                    regexStr = rule.term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    if (rule.exact) {
+                        regexStr = `\\b${regexStr}\\b`;
+                    }
+                }
+                
+                let flags = rule.caseSensitive ? 'g' : 'gi';
+                let regex; 
+                try { 
+                    regex = new RegExp(regexStr, flags); 
+                } catch(e) { 
+                    continue; 
+                }
+
+                let match;
+                while ((match = regex.exec(fullText)) !== null) {
+                    // Prevent infinite loops on empty regex matches (e.g., `.*`)
+                    if (match[0].length === 0) { 
+                        regex.lastIndex++; 
+                        continue; 
+                    }
+
+                    stats[rule.id].count++;
+                    
+                    const startIndex = match.index; 
+                    const matchLength = match[0].length; 
+                    const endIndex = startIndex + matchLength - 1;
+                    
+                    // Extract snippet context for the report
+                    const contextStart = Math.max(0, startIndex - 40); 
+                    const contextEnd = Math.min(fullText.length, endIndex + 40);
+                    let snippet = fullText.substring(contextStart, contextEnd).replace(/\s+/g, ' ').trim();
+                    stats[rule.id].snippets.push(`"...${snippet}..."`);
+
+                    // Determine which PDF text fragments are involved in this specific match
+                    const involvedItems = new Map();
+                    for (let i = startIndex; i <= endIndex; i++) {
+                        const mapData = charMap[i];
+                        if (!mapData || mapData.isSpace || !mapData.item) continue;
+                        
+                        if (!involvedItems.has(mapData.item)) {
+                            involvedItems.set(mapData.item, { min: mapData.charIdx, max: mapData.charIdx });
+                        } else {
+                            involvedItems.get(mapData.item).max = mapData.charIdx;
+                        }
+                    }
+
+                    // Calculate drawing coordinates for each fragment
+                    for (const [item, range] of involvedItems.entries()) {
+                        const strLen = item.str.length; 
+                        if (strLen === 0) continue;
+                        
+                        const charWidth = item.width / strLen;
+                        
+                        // PDF.js transform matrix: [scaleX, skewX, skewY, scaleY, tx, ty]
+                        // tx, ty represent the bottom-left baseline of the text.
+                        const tx = item.transform[4]; 
+                        const ty = item.transform[5];
+                        const fontHeight = Math.abs(item.transform[3]) || 12;
+                        
+                        // Padding helps ensure proportional fonts don't clip the bounding box
+                        const padding = 1.0; 
+                        const startX = tx + (range.min * charWidth) - padding;
+                        const endX = tx + ((range.max + 1) * charWidth) + padding;
+                        const w = endX - startX; 
+                        
+                        // Drop Y slightly to cover descenders (y, g, p) and increase height
+                        const y = ty - (fontHeight * 0.2); 
+                        const h = fontHeight * 1.2;
+
+                        matchesToHighlight.push({ rect: [startX, y, w, h], rule: rule });
+                    }
+                }
+            }
+
+            // Inject the Highlights using PDF-Lib
+            if (matchesToHighlight.length > 0) {
+                const libPage = pdfLibDoc.getPage(pageNum - 1);
+                const { PDFName, PDFString } = PDFLib;
+                
+                // Get or create the Annots array for this page
+                let annots = libPage.node.Annots();
+                if (!annots) { 
+                    annots = pdfLibDoc.context.obj([]); 
+                    libPage.node.set(PDFName.of('Annots'), annots); 
+                }
+
+                for (const matchObj of matchesToHighlight) {
+                    const [x, y, w, h] = matchObj.rect;
+                    
+                    const r = parseInt(matchObj.rule.color.substring(1,3), 16) / 255;
+                    const g = parseInt(matchObj.rule.color.substring(3,5), 16) / 255;
+                    const b = parseInt(matchObj.rule.color.substring(5,7), 16) / 255;
+
+                    // Standard PDF Highlight Dictionary
+                    const annotArgs = {
+                        Type: 'Annot', 
+                        Subtype: 'Highlight', 
+                        Rect: [x, y, x + w, y + h],
+                        // QuadPoints required by PDF spec for highlights (TopLeft, TopRight, BtmLeft, BtmRight)
+                        QuadPoints: [
+                            x, y + h, 
+                            x + w, y + h, 
+                            x, y, 
+                            x + w, y
+                        ],
+                        C: [r, g, b], 
+                        CreationDate: PDFString.of(new Date().toISOString())
+                    };
+                    
+                    if (author) {
+                        annotArgs.T = PDFString.of(author);
+                    }
+                    if (matchObj.rule.note) {
+                        annotArgs.Contents = PDFString.of(matchObj.rule.note);
+                    }
+
+                    const annot = pdfLibDoc.context.obj(annotArgs);
+                    annots.push(pdfLibDoc.context.register(annot));
+                }
+            }
+            return stats;
+        }
+    </script>
+</body>
+</html>
