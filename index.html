@@ -358,6 +358,7 @@
                 <div>
                     <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-eraser text-gh-danger"></i> Selective Stripping</h3>
                     <p>Clicking "Strip Annotations" allows you to scan PDFs and permanently delete Highlights, Underlines, Strikeouts, and Sticky Notes. You can strip everything, or only remove annotations made by a specific Author or in a specific Color.</p>
+                    <p class="mt-2 text-xs opacity-70"><i class="ph-bold ph-info"></i> <strong>Note:</strong> This is non-destructive (it generates a new, clean copy) and <strong>applies to all queued files at once</strong>. If you only want to strip a specific document, queue only that file.</p>
                 </div>
 
                 <div>
@@ -986,19 +987,21 @@
                                     const subtype = annot.get(PDFName.of('Subtype'))?.name;
                                     
                                     if (['Highlight', 'Text', 'Underline', 'StrikeOut', 'Squiggly'].includes(subtype)) {
-                                        // Extract Author
+                                        // Extract Author (safely handle PDFString or PDFHexString)
                                         const tStr = annot.get(PDFName.of('T'));
-                                        if (tStr && tStr.value) {
-                                            uniqueAuthors.add(tStr.value);
+                                        if (tStr) {
+                                            const val = typeof tStr.decodeText === 'function' ? tStr.decodeText() : tStr.value;
+                                            if (val) uniqueAuthors.add(val);
                                         }
 
-                                        // Extract Color
+                                        // Extract Color (safely handle PDFArray and PDFNumber)
                                         const cArr = annot.get(PDFName.of('C'));
-                                        if (cArr && cArr.array && cArr.array.length >= 3) {
-                                            const r = cArr.get(0).value;
-                                            const g = cArr.get(1).value;
-                                            const b = cArr.get(2).value;
-                                            uniqueColors.add(rgbFloatToHex(r, g, b));
+                                        if (cArr && typeof cArr.size === 'function' && cArr.size() >= 3) {
+                                            const getVal = (idx) => {
+                                                const num = cArr.get(idx);
+                                                return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
+                                            };
+                                            uniqueColors.add(rgbFloatToHex(getVal(0), getVal(1), getVal(2)));
                                         }
                                     }
                                 }
@@ -1018,7 +1021,7 @@
 
                 if (uniqueColors.size > 0) {
                     colorSelect.innerHTML = Array.from(uniqueColors)
-                        .map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
+                        .map(c => `<option value="${c}" style="background-color:${c}">${c.toUpperCase()}</option>`).join('');
                     colorSelect.disabled = false;
                 } else {
                     colorSelect.innerHTML = '<option value="">No colors found</option>';
@@ -1333,16 +1336,21 @@
                                             shouldStrip = true;
                                         } else if (config.mode === 'author' && config.authorTarget) {
                                             const tStr = annot.get(PDFName.of('T'));
-                                            const annotAuthor = tStr ? tStr.value : ''; 
+                                            const annotAuthor = tStr ? (typeof tStr.decodeText === 'function' ? tStr.decodeText() : tStr.value) : ''; 
                                             if (annotAuthor === config.authorTarget) {
                                                 shouldStrip = true;
                                             }
                                         } else if (config.mode === 'color' && config.colorTarget) {
                                             const cArr = annot.get(PDFName.of('C'));
-                                            if (cArr && cArr.array && cArr.array.length >= 3) {
-                                                const r = cArr.get(0).value;
-                                                const g = cArr.get(1).value;
-                                                const b = cArr.get(2).value;
+                                            if (cArr && typeof cArr.size === 'function' && cArr.size() >= 3) {
+                                                const getVal = (idx) => {
+                                                    const num = cArr.get(idx);
+                                                    return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
+                                                };
+                                                
+                                                const r = getVal(0);
+                                                const g = getVal(1);
+                                                const b = getVal(2);
                                                 
                                                 // Tolerance check for floating point math inaccuracies
                                                 if (Math.abs(r - targetColorRgb[0]) < 0.05 && 
