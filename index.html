@@ -250,7 +250,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.3.1</span>
+            <span>v0.3.2</span>
         </div>
     </aside>
 
@@ -788,15 +788,6 @@
             }
         }
 
-        function revealPreset(id) {
-            const rule = rules.find(r => r.id === id);
-            if (rule) { 
-                rule.presetName = null; 
-                renderRules(); 
-                saveSettings(); 
-            }
-        }
-
         function setMatchType(id, type) {
             const rule = rules.find(r => r.id === id);
             if (rule) {
@@ -850,10 +841,16 @@
                 let mainInputHTML = '';
                 
                 if (rule.presetName) {
+                    let iconClass = 'ph-magic-wand';
+                    if (rule.presetName === 'Email Addresses') iconClass = 'ph-envelope';
+                    else if (rule.presetName === 'Phone Numbers') iconClass = 'ph-phone';
+                    else if (rule.presetName === 'Dates') iconClass = 'ph-calendar';
+
                     mainInputHTML = `
-                        <div class="w-full flex items-center justify-between bg-gh-panel border border-gh-border rounded px-3 py-1.5">
-                            <span class="text-sm font-bold flex items-center gap-2"><i class="ph-bold ph-magic-wand text-gh-accent"></i> Preset: ${rule.presetName}</span>
-                            <button onclick="revealPreset('${rule.id}')" class="text-xs text-gh-muted hover:text-gh-accent transition-colors underline">Reveal Pattern</button>
+                        <div class="w-full flex items-center bg-gh-panel border border-gh-border rounded px-3 py-2 opacity-80 cursor-not-allowed select-none">
+                            <span class="text-sm font-bold flex items-center gap-2 text-gh-muted">
+                                <i class="ph-fill ${iconClass} text-lg"></i> ${rule.presetName}
+                            </span>
                         </div>
                     `;
                 } else {
@@ -871,12 +868,12 @@
                         
                         <div class="flex items-center justify-between gap-2">
                             <!-- Tool Toggles -->
-                            <div class="flex bg-gh-border/30 p-0.5 rounded gap-0.5">
+                            <div class="flex bg-gh-border/30 p-0.5 rounded gap-0.5 ${rule.presetName ? 'invisible' : ''}">
                                 <div onclick="setMatchType('${rule.id}', 'case')" class="${baseBtnClass} ${cAct}" title="Case Sensitive">Aa</div>
                                 <div class="w-px bg-gh-border mx-1 my-1"></div>
-                                <div onclick="setMatchType('${rule.id}', 'partial')" class="${baseBtnClass} ${pAct} ${rule.presetName ? 'hidden' : ''}" title="Partial Match">abc</div>
-                                <div onclick="setMatchType('${rule.id}', 'exact')" class="${baseBtnClass} ${eAct} ${rule.presetName ? 'hidden' : ''}" title="Exact Match">" "</div>
-                                <div onclick="setMatchType('${rule.id}', 'regex')" class="${baseBtnClass} ${rAct} ${rule.presetName ? 'hidden' : ''}" title="Regex Match">.*</div>
+                                <div onclick="setMatchType('${rule.id}', 'partial')" class="${baseBtnClass} ${pAct}" title="Partial Match">abc</div>
+                                <div onclick="setMatchType('${rule.id}', 'exact')" class="${baseBtnClass} ${eAct}" title="Exact Match">" "</div>
+                                <div onclick="setMatchType('${rule.id}', 'regex')" class="${baseBtnClass} ${rAct}" title="Regex Match">.*</div>
                             </div>
                             
                             <!-- Color & Trash Actions -->
