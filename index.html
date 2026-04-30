@@ -984,21 +984,24 @@
                                 const annot = pdfLibDoc.context.lookup(annotRef);
                                 
                                 if (annot) {
-                                    const subtype = annot.get(PDFName.of('Subtype'))?.name;
+                                    // Safely resolve the PDFName reference to a string (e.g., "/Highlight")
+                                    const subtypeObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('Subtype')));
+                                    const subtype = subtypeObj ? String(subtypeObj) : '';
                                     
-                                    if (['Highlight', 'Text', 'Underline', 'StrikeOut', 'Squiggly'].includes(subtype)) {
-                                        // Extract Author (safely handle PDFString or PDFHexString)
-                                        const tStr = annot.get(PDFName.of('T'));
-                                        if (tStr) {
-                                            const val = typeof tStr.decodeText === 'function' ? tStr.decodeText() : tStr.value;
+                                    if (['/Highlight', '/Text', '/Underline', '/StrikeOut', '/Squiggly'].includes(subtype)) {
+                                        // Extract Author (safely handle references and PDFString types)
+                                        const tObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('T')));
+                                        if (tObj) {
+                                            const val = typeof tObj.decodeText === 'function' ? tObj.decodeText() : tObj.value;
                                             if (val) uniqueAuthors.add(val);
                                         }
 
-                                        // Extract Color (safely handle PDFArray and PDFNumber)
-                                        const cArr = annot.get(PDFName.of('C'));
-                                        if (cArr && typeof cArr.size === 'function' && cArr.size() >= 3) {
+                                        // Extract Color (safely handle references and PDFArray/PDFNumber types)
+                                        const cObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('C')));
+                                        if (cObj && typeof cObj.size === 'function' && cObj.size() >= 3) {
                                             const getVal = (idx) => {
-                                                const num = cArr.get(idx);
+                                                const num = pdfLibDoc.context.lookup(cObj.get(idx));
+                                                if (!num) return 0;
                                                 return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
                                             };
                                             uniqueColors.add(rgbFloatToHex(getVal(0), getVal(1), getVal(2)));
@@ -1326,25 +1329,27 @@
                                 const annot = pdfLibDoc.context.lookup(annotRef);
                                 
                                 if (annot) {
-                                    const subtype = annot.get(PDFName.of('Subtype'))?.name;
+                                    const subtypeObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('Subtype')));
+                                    const subtype = subtypeObj ? String(subtypeObj) : '';
                                     
                                     // Target specific visual markup annotations
-                                    if (['Highlight', 'Text', 'Underline', 'StrikeOut', 'Squiggly'].includes(subtype)) {
+                                    if (['/Highlight', '/Text', '/Underline', '/StrikeOut', '/Squiggly'].includes(subtype)) {
                                         let shouldStrip = false;
                                         
                                         if (config.mode === 'all') {
                                             shouldStrip = true;
                                         } else if (config.mode === 'author' && config.authorTarget) {
-                                            const tStr = annot.get(PDFName.of('T'));
-                                            const annotAuthor = tStr ? (typeof tStr.decodeText === 'function' ? tStr.decodeText() : tStr.value) : ''; 
+                                            const tObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('T')));
+                                            const annotAuthor = tObj ? (typeof tObj.decodeText === 'function' ? tObj.decodeText() : tObj.value) : ''; 
                                             if (annotAuthor === config.authorTarget) {
                                                 shouldStrip = true;
                                             }
                                         } else if (config.mode === 'color' && config.colorTarget) {
-                                            const cArr = annot.get(PDFName.of('C'));
-                                            if (cArr && typeof cArr.size === 'function' && cArr.size() >= 3) {
+                                            const cObj = pdfLibDoc.context.lookup(annot.get(PDFName.of('C')));
+                                            if (cObj && typeof cObj.size === 'function' && cObj.size() >= 3) {
                                                 const getVal = (idx) => {
-                                                    const num = cArr.get(idx);
+                                                    const num = pdfLibDoc.context.lookup(cObj.get(idx));
+                                                    if (!num) return 0;
                                                     return typeof num.asNumber === 'function' ? num.asNumber() : (num.value || 0);
                                                 };
                                                 
