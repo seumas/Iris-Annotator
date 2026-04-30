@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iris Annotator</title>
     
-    <!-- Generated SVG Favicon (Aperture/Iris) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 256 256%22><rect width=%22256%22 height=%22256%22 fill=%22none%22/><circle cx=%22128%22 cy=%22128%22 r=%2296%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><circle cx=%22128%22 cy=%22128%22 r=%2232%22 fill=%22none%22 stroke=%22%232f81f7%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22150.63%22 y1=%22105.37%22 x2=%22195.88%22 y2=%2260.12%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22105.37%22 y1=%22150.63%22 x2=%2260.12%22 y2=%22195.88%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22150.63%22 y1=%22150.63%22 x2=%22195.88%22 y2=%22195.88%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/><line x1=%22105.37%22 y1=%22105.37%22 x2=%2260.12%22 y2=%2260.12%22 fill=%22none%22 stroke=%22%230969da%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%2216%22/></svg>">
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -107,21 +105,15 @@
         }
     </style>
 
-    <!-- External Libraries (Loaded via CDN) -->
-    <!-- PDF.js handles reading the PDF text and locating coordinates -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <!-- PDF-Lib handles creating the new PDF and safely injecting annotation objects -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <!-- Phosphor Icons for crisp SVG UI icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 
 <body class="h-screen flex flex-col md:flex-row text-gh-fg font-sans bg-gh-bg selection:bg-gh-accent selection:text-white">
 
-    <!-- Sidebar: Controls -->
     <aside class="w-full md:w-[420px] bg-gh-panel border-r border-gh-border p-6 flex flex-col h-full overflow-y-auto shrink-0 shadow-lg z-20 transition-colors relative">
         
-        <!-- Header -->
         <div class="flex items-start justify-between mb-5">
             <div class="flex flex-col">
                 <h1 class="text-2xl font-bold flex items-center gap-2 leading-none">
@@ -135,7 +127,6 @@
                     <button id="volBtn" class="p-2 rounded-md hover:bg-gh-bg transition-colors text-lg text-gh-muted hover:text-gh-fg">
                         <i class="ph-fill ph-speaker-high" id="volIcon"></i>
                     </button>
-                    <!-- Volume Slider Popup -->
                     <div class="tooltip-text absolute right-0 top-full mt-1 bg-gh-panel border border-gh-border p-3 rounded-lg shadow-xl z-50 flex items-center gap-2 w-32">
                         <i class="ph-fill ph-speaker-low text-xs"></i>
                         <input type="range" id="volSlider" min="0" max="1" step="0.1" value="0.5" class="w-full">
@@ -152,15 +143,13 @@
             </div>
         </div>
 
-        <!-- Profiles Management -->
         <div class="mb-5 bg-gh-bg p-3 rounded-xl border border-gh-border flex flex-col gap-2">
             <label class="block text-xs font-bold uppercase opacity-80 flex items-center gap-2">
                 <i class="ph-bold ph-folder-open"></i> Workspace Profile
             </label>
             <div class="flex gap-2 items-center">
                 <select id="profileSelect" class="flex-1 bg-gh-panel border border-gh-border rounded p-1.5 text-sm font-bold outline-none focus:border-gh-accent cursor-pointer">
-                    <!-- Populated by Javascript -->
-                </select>
+                    </select>
                 <div class="relative group">
                     <button class="p-1.5 rounded hover:bg-gh-panel border border-transparent hover:border-gh-border transition-colors text-gh-muted hover:text-gh-fg" title="Profile Options">
                         <i class="ph-bold ph-dots-three-vertical text-lg"></i>
@@ -172,7 +161,6 @@
                         <button onclick="document.getElementById('importProfileInput').click()" class="w-full text-left px-4 py-2 text-sm hover:bg-gh-bg"><i class="ph-bold ph-import"></i> Import (JSON)</button>
                     </div>
                 </div>
-                <!-- Hidden file input for importing JSON -->
                 <input type="file" id="importProfileInput" accept=".json" class="hidden">
             </div>
         </div>
@@ -180,7 +168,6 @@
         <hr class="border-gh-border my-4">
 
         <div class="space-y-6 flex-1">
-            <!-- Search Rules -->
             <div>
                 <div class="flex items-center justify-between mb-3">
                     <label class="block text-sm font-bold tracking-wide uppercase opacity-80">Active Rules</label>
@@ -190,15 +177,13 @@
                 </div>
                 
                 <div id="rulesContainer" class="space-y-3 mb-4">
-                    <!-- Rule cards injected via JavaScript -->
-                </div>
+                    </div>
 
                 <div class="flex gap-2 border-t border-dashed border-gh-border pt-4">
                     <button onclick="addRule()" class="flex-1 py-2 border border-gh-border rounded-lg text-sm font-medium hover:bg-gh-bg hover:border-gh-accent hover:text-gh-accent transition-colors flex items-center justify-center gap-2">
                         <i class="ph-bold ph-plus"></i> Add New Blank Rule
                     </button>
                     
-                    <!-- Presets Dropdown -->
                     <div class="relative group">
                         <button class="px-3 py-2 border border-gh-border rounded-lg text-sm font-medium hover:bg-gh-bg hover:border-gh-accent hover:text-gh-accent transition-colors flex items-center justify-center gap-2" title="Add Pre-built Regex Patterns">
                             <i class="ph-bold ph-magic-wand"></i> Presets
@@ -214,7 +199,6 @@
 
             <hr class="border-gh-border">
 
-            <!-- Document Settings -->
             <div class="space-y-4">
                 <label class="block text-sm font-bold tracking-wide uppercase opacity-80">Output Settings</label>
                 
@@ -250,20 +234,16 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 p-4 md:p-8 flex flex-col h-full overflow-hidden transition-colors max-w-6xl mx-auto w-full relative">
         
-        <!-- Drag & Drop Zone -->
         <div id="dropzone" class="border-2 border-dashed border-gh-border rounded-2xl bg-gh-panel p-6 flex flex-col items-center justify-center text-center transition-all duration-200 shrink-0 hover:border-gh-accent hover:bg-gh-bg cursor-pointer min-h-[140px]">
             <h3 class="text-lg font-bold mb-1">Queue Documents</h3>
             <p class="text-sm opacity-70">Drag & drop multiple PDFs here, or click to browse</p>
             <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
         </div>
 
-        <!-- File Queue Area -->
         <div class="mt-6 flex flex-col flex-1 min-h-0 bg-gh-panel rounded-2xl shadow-sm border border-gh-border overflow-hidden">
             
-            <!-- Queue Toolbar -->
             <div class="p-4 border-b border-gh-border bg-gh-bg flex flex-col md:flex-row justify-between items-center shrink-0 gap-4">
                 <h3 class="font-bold flex items-center gap-2">
                     <i class="ph-bold ph-stack"></i> Processing Queue
@@ -273,12 +253,10 @@
                     
                     <button id="saveAllBtn" onclick="saveAllFiles()" class="hidden px-4 py-2 text-sm font-bold text-gh-success hover:bg-gh-success/10 border border-transparent hover:border-gh-success/30 rounded-lg transition-colors flex items-center gap-1"><i class="ph-bold ph-download-simple"></i> Save All</button>
 
-                    <!-- Strip Action -->
                     <button id="stripBtn" onclick="toggleStripModal()" title="Removes Highlights, Underlines, Strikeouts, and Sticky Notes. Leaves Links and Forms untouched." class="hidden bg-transparent border border-gh-danger text-gh-danger hover:bg-gh-danger hover:text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="ph-bold ph-eraser"></i> Strip Annotations...
                     </button>
 
-                    <!-- Annotate Action -->
                     <button id="processBtn" onclick="processQueueAnnotate()" class="hidden bg-gh-accent hover:bg-gh-accent/80 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="ph-bold ph-highlighter"></i> Annotate Files
                     </button>
@@ -290,14 +268,10 @@
                     <i class="ph-thin ph-files text-5xl mb-2"></i>
                     <p class="text-sm font-medium">Ready for PDFs.</p>
                 </div>
-                <!-- File Cards Injected Here -->
-            </div>
+                </div>
         </div>
     </main>
 
-    <!-- Modals -->
-
-    <!-- Strip Annotations Config Modal -->
     <div id="stripModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-gh-panel rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-gh-border flex flex-col">
             <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
@@ -331,7 +305,6 @@
         </div>
     </div>
 
-    <!-- Help & About Modal -->
     <div id="helpModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-gh-panel rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-gh-border flex flex-col max-h-[80vh]">
             <div class="p-4 border-b border-gh-border bg-gh-bg flex justify-between items-center">
@@ -379,7 +352,6 @@
         </div>
     </div>
 
-    <!-- PDF Preview Modal -->
     <div id="previewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex flex-col p-4 md:p-8 transition-opacity">
         <div class="flex justify-between items-center mb-4 text-white">
             <h2 class="text-xl font-bold flex items-center gap-2"><i class="ph-fill ph-eye text-gh-accent"></i> Document Preview</h2>
@@ -392,12 +364,8 @@
         </div>
     </div>
 
-    <!-- Toast Notifications Container -->
     <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- ==========================================
-         JAVASCRIPT APPLICATION LOGIC
-         ========================================== -->
     <script>
         // Tell PDF.js where to find its web worker. This is required for local browser execution.
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -422,6 +390,27 @@
         
         let fileQueue = []; 
         let isProcessing = false;
+
+        // --- Color Math Helpers ---
+        // Helper to convert #RRGGBB to an array of floats [0.0 - 1.0] for PDFLib
+        function hexToRgbFloat(hex) {
+            return [
+                parseInt(hex.substr(1,2), 16) / 255, 
+                parseInt(hex.substr(3,2), 16) / 255, 
+                parseInt(hex.substr(5,2), 16) / 255
+            ];
+        }
+
+        // Helper to determine if text should be dark or light based on background brightness
+        function getContrastColor(hex) {
+            const r = parseInt(hex.substr(1, 2), 16);
+            const g = parseInt(hex.substr(3, 2), 16);
+            const b = parseInt(hex.substr(5, 2), 16);
+            // Standard YIQ formula for perceived brightness
+            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+            return (yiq >= 128) ? '#24292f' : '#ffffff'; // Dark gray for light backgrounds, white for dark
+        }
+
 
         // --- Audio Synthesizer (Completion Ding) ---
         let audioCtx = null;
@@ -823,7 +812,6 @@
                         ${mainInputHTML}
                         
                         <div class="flex items-center justify-between gap-2">
-                            <!-- Tool Toggles -->
                             <div class="flex bg-gh-border/30 p-0.5 rounded gap-0.5">
                                 <div onclick="setMatchType('${rule.id}', 'case')" class="${baseBtnClass} ${cAct}" title="Case Sensitive">Aa</div>
                                 <div class="w-px bg-gh-border mx-1 my-1"></div>
@@ -832,7 +820,6 @@
                                 <div onclick="setMatchType('${rule.id}', 'regex')" class="${baseBtnClass} ${rAct} ${rule.presetName ? 'hidden' : ''}" title="Regex Match">.*</div>
                             </div>
                             
-                            <!-- Color & Trash Actions -->
                             <div class="flex items-center gap-2 shrink-0">
                                 <div class="relative color-picker-wrapper">
                                     <button onclick="togglePalette('${rule.id}')" class="w-6 h-6 rounded border border-gh-border shadow-sm cursor-pointer hover:scale-105 transition-transform" style="background-color: ${rule.color}" title="Pick Color"></button>
@@ -852,7 +839,6 @@
                         </div>
                     </div>
                     
-                    <!-- Hover Note Input -->
                     <div class="flex items-center gap-2 opacity-70 focus-within:opacity-100 transition-opacity border-t border-gh-border/50 pt-2 mt-1">
                         <i class="ph-bold ph-note-pencil text-gh-muted"></i>
                         <input type="text" placeholder="Hover sticky note (optional)..." value="${rule.note || ''}" 
@@ -1069,11 +1055,14 @@
                             
                             if (total > 0) {
                                 hasMatches = true;
+                                // Calculate the safe, readable text color for this specific badge
+                                const safeTextColor = getContrastColor(rule.color);
+                                
                                 logHTML += `
                                     <details class="mb-1 group">
                                         <summary class="font-bold flex items-center gap-2 hover:bg-gh-panel p-1 rounded transition-colors">
                                             <i class="ph-bold ph-caret-right transition-transform group-open:rotate-90"></i>
-                                            <span class="px-1.5 py-0.5 rounded text-xs text-gh-fg" style="background-color: ${rule.color}">${rule.presetName || rule.term}</span>
+                                            <span class="px-1.5 py-0.5 rounded text-xs border border-black/10 shadow-sm" style="background-color: ${rule.color}; color: ${safeTextColor};">${rule.presetName || rule.term}</span>
                                             <span>${total} match(es)</span>
                                         </summary>
                                         <ul class="pl-8 text-xs opacity-70 mt-1 space-y-0.5 pb-2">
@@ -1172,15 +1161,6 @@
             
             const config = { mode, authorTarget, colorTarget };
             processQueueStrip(config);
-        }
-
-        // Helper to convert #RRGGBB to an array of floats [0.0 - 1.0] for PDFLib
-        function hexToRgbFloat(hex) {
-            return [
-                parseInt(hex.substr(1,2), 16) / 255, 
-                parseInt(hex.substr(3,2), 16) / 255, 
-                parseInt(hex.substr(5,2), 16) / 255
-            ];
         }
 
         async function processQueueStrip(config) {
