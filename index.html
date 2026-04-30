@@ -250,7 +250,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.3.0</span>
+            <span>v0.3.1</span>
         </div>
     </aside>
 
@@ -701,6 +701,20 @@
         }
 
         // --- Rule Construction ---
+        function getNextAvailableColor() {
+            const usedColors = rules.map(r => r.color);
+            // Try standard defaults first
+            const availableDefault = defaultColors.find(c => !usedColors.includes(c));
+            if (availableDefault) return availableDefault;
+            
+            // Fallback to extended palette
+            const availablePalette = paletteColors.find(c => !usedColors.includes(c));
+            if (availablePalette) return availablePalette;
+            
+            // If somehow all colors are used, just cycle default
+            return defaultColors[rules.length % defaultColors.length];
+        }
+
         function addRule(term = '', exact = false, color = null, isRegex = false, note = '') {
             ruleCounter++;
             rules.push({ 
@@ -711,16 +725,23 @@
                 caseSensitive: false, 
                 note: note, 
                 presetName: null, 
-                color: color || defaultColors[(ruleCounter - 1) % defaultColors.length] 
+                color: color || getNextAvailableColor() 
             });
             renderRules(); 
             saveSettings();
         }
 
-        function addPreset(name, pattern, color) {
+        function addPreset(name, pattern, suggestedColor) {
             // Overwrite if only one blank rule exists
             if (rules.length === 1 && rules[0].term === '' && !rules[0].presetName) {
                 rules.pop();
+            }
+            
+            // Check if suggested preset color is already in use
+            const usedColors = rules.map(r => r.color);
+            let finalColor = suggestedColor;
+            if (!finalColor || usedColors.includes(finalColor)) {
+                finalColor = getNextAvailableColor();
             }
             
             ruleCounter++;
@@ -732,7 +753,7 @@
                 caseSensitive: false, 
                 note: '', 
                 presetName: name, 
-                color: color 
+                color: finalColor 
             });
             
             renderRules(); 
@@ -762,6 +783,8 @@
             if (rule) { 
                 rule[key] = value; 
                 saveSettings(); 
+                // Force UI re-render for color changes so the button visually updates immediately
+                if (key === 'color') renderRules();
             }
         }
 
