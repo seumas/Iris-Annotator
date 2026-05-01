@@ -375,21 +375,21 @@
                         <a href="https://mozilla.github.io/pdf.js/" target="_blank" class="text-gh-link hover:underline">PDF.js (Mozilla)</a>, 
                         <a href="https://pdf-lib.js.org/" target="_blank" class="text-gh-link hover:underline">PDF-Lib</a>, 
                         and <a href="https://phosphoricons.com/" target="_blank" class="text-gh-link hover:underline">Phosphor Icons</a>.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- PDF Preview Modal -->
     <div id="previewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex flex-col p-4 md:p-8 transition-opacity">
         <div class="flex justify-between items-center mb-4 text-white">
             <h2 class="text-xl font-bold flex items-center gap-2"><i class="ph-fill ph-eye text-gh-accent"></i> Document Preview</h2>
-            <button onclick="togglePreview()" class="hover:text-gh-danger transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm flex items-center gap-2 font-bold">
-                <i class="ph-bold ph-x text-xl"></i> Close
-            </button>
+            <div class="flex gap-2">
+                <a id="previewNewTabBtn" href="#" target="_blank" class="hover:text-gh-accent transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm flex items-center gap-2 font-bold text-sm">
+                    <i class="ph-bold ph-arrow-square-out text-lg"></i> Open in New Tab
+                </a>
+                <button onclick="togglePreview()" class="hover:text-gh-danger transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm flex items-center gap-2 font-bold text-sm">
+                    <i class="ph-bold ph-x text-lg"></i> Close
+                </button>
+            </div>
         </div>
         <div class="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl border border-gh-border relative">
-            <iframe id="pdfIframe" class="w-full h-full border-0"></iframe>
+            <embed id="pdfEmbed" type="application/pdf" class="w-full h-full border-0"></embed>
         </div>
     </div>
 
@@ -956,11 +956,12 @@
         function togglePreview(url = null) {
             const modal = document.getElementById('previewModal');
             if (url) { 
-                document.getElementById('pdfIframe').src = url; 
+                document.getElementById('pdfEmbed').src = url; 
+                document.getElementById('previewNewTabBtn').href = url;
                 modal.classList.remove('hidden'); 
             } else { 
                 modal.classList.add('hidden'); 
-                document.getElementById('pdfIframe').src = ''; 
+                document.getElementById('pdfEmbed').src = ''; 
             }
         }
         
@@ -1231,7 +1232,11 @@
                             }
                         }
                         if (!hasMatches) {
-                            logHTML += `<span class="opacity-50">No matches found.</span>`;
+                            if (fileRecord.lowTextWarning) {
+                                logHTML += `<span class="text-gh-warning font-bold text-xs flex items-center gap-1"><i class="ph-bold ph-warning"></i> Warning: Document contains almost no readable text. It may be a scanned image requiring OCR.</span>`;
+                            } else {
+                                logHTML += `<span class="opacity-50">No matches found.</span>`;
+                            }
                         }
                         logHTML += `</div>`;
                     } else if (isStrip) {
@@ -1490,6 +1495,7 @@
                     
                     let totalMatches = 0; 
                     let requiresSave = false;
+                    let textCheckCount = 0;
 
                     for (let i = 1; i <= pdfjsDoc.numPages; i++) {
                         const prog = document.getElementById(`prog-${fileRecord.id}`);
@@ -1500,6 +1506,7 @@
                         if (i % 5 === 0) await new Promise(r => setTimeout(r, 5));
 
                         const pageMatches = await processPageAnnotate(i, pdfjsDoc, pdfLibDoc, activeRules, author);
+                        textCheckCount += pageMatches.textLength || 0;
                         
                         for (const [ruleId, pageData] of Object.entries(pageMatches)) {
                             if (pageData.count > 0) {
@@ -1508,6 +1515,10 @@
                                 requiresSave = true;
                             }
                         }
+                    }
+
+                    if (textCheckCount < 50 && totalMatches === 0) {
+                        fileRecord.lowTextWarning = true;
                     }
 
                     if (requiresSave) {
@@ -1567,6 +1578,7 @@
                 }
             });
 
+            stats.textLength = fullText.length;
             const matchesToHighlight = [];
 
             for (const rule of activeRules) {
