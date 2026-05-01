@@ -250,7 +250,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.3.3</span>
+            <span>v0.3.4</span>
         </div>
     </aside>
 
@@ -375,7 +375,12 @@
                         <a href="https://mozilla.github.io/pdf.js/" target="_blank" class="text-gh-link hover:underline">PDF.js (Mozilla)</a>, 
                         <a href="https://pdf-lib.js.org/" target="_blank" class="text-gh-link hover:underline">PDF-Lib</a>, 
                         and <a href="https://phosphoricons.com/" target="_blank" class="text-gh-link hover:underline">Phosphor Icons</a>.
-    <!-- PDF Preview Modal -->
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="previewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex flex-col p-4 md:p-8 transition-opacity">
         <div class="flex justify-between items-center mb-4 text-white">
             <h2 class="text-xl font-bold flex items-center gap-2"><i class="ph-fill ph-eye text-gh-accent"></i> Document Preview</h2>
@@ -388,8 +393,8 @@
                 </button>
             </div>
         </div>
-        <div class="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl border border-gh-border relative">
-            <embed id="pdfEmbed" type="application/pdf" class="w-full h-full border-0"></embed>
+        <div id="pdfPreviewContainer" class="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl border border-gh-border relative">
+            <!-- iframe injected dynamically -->
         </div>
     </div>
 
@@ -955,13 +960,14 @@
         
         function togglePreview(url = null) {
             const modal = document.getElementById('previewModal');
+            const container = document.getElementById('pdfPreviewContainer');
             if (url) { 
-                document.getElementById('pdfEmbed').src = url; 
+                container.innerHTML = `<iframe src="${url}" class="w-full h-full border-0"></iframe>`;
                 document.getElementById('previewNewTabBtn').href = url;
                 modal.classList.remove('hidden'); 
             } else { 
                 modal.classList.add('hidden'); 
-                document.getElementById('pdfEmbed').src = ''; 
+                container.innerHTML = ''; 
             }
         }
         
