@@ -233,11 +233,6 @@
                         <input type="checkbox" id="autoIncrement" checked class="accent-gh-accent w-3.5 h-3.5">
                         Auto-increment batch numbers (e.g. _1, _2)
                     </label>
-                    <label class="flex items-center gap-2 text-xs cursor-pointer select-none mt-1">
-                        <input type="checkbox" id="aggressiveSpacing" class="accent-gh-accent w-3.5 h-3.5">
-                        <span class="opacity-90">Aggressive spacing fallback</span>
-                        <i class="ph-bold ph-info cursor-help text-gh-muted" title="Injects extra spaces during extraction. Check this if your searches are failing because words are glued together."></i>
-                    </label>
                 </div>
 
                 <div>
@@ -255,7 +250,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.3.7</span>
+            <span>v0.4.0</span>
         </div>
     </aside>
 
@@ -269,7 +264,11 @@
             <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
         </div>
 
-        <div id="inputActionsBar" class="mt-3 flex justify-end gap-3 hidden shrink-0">
+        <div id="inputActionsBar" class="mt-3 flex justify-end items-center gap-3 hidden shrink-0">
+            <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none text-gh-muted hover:text-gh-fg transition-colors mr-1 border-r border-gh-border pr-4">
+                <input type="checkbox" id="aggressiveSpacing" class="accent-gh-accent w-3.5 h-3.5">
+                <span title="Inject extra spaces during extraction. Use if searches fail due to glued words.">Aggressive Spacing</span>
+            </label>
             <button id="stripBtn" onclick="prepareStripModal()" title="Removes Highlights, Underlines, Strikeouts, and Sticky Notes. Leaves Links and Forms untouched." class="bg-transparent border border-gh-danger text-gh-danger hover:bg-gh-danger hover:text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm">
                 <i class="ph-bold ph-eraser"></i> Strip Annotations...
             </button>
@@ -423,7 +422,7 @@
         const defaultColors = ['#fef08a', '#bbf7d0', '#fbcfe8', '#bae6fd', '#fed7aa']; 
         
         let allProfiles = {
-            "Default": { rules: [], authorName: "", nameModMode: "prefix", nameModText: "", autoIncrement: true, aggressiveSpacing: false }
+            "Default": { rules: [], authorName: "", nameModMode: "prefix", nameModText: "", autoIncrement: true }
         };
         let currentProfileKey = "Default";
         
@@ -532,8 +531,7 @@
                 authorName: document.getElementById('authorName').value,
                 nameModMode: document.getElementById('nameModMode').value,
                 nameModText: document.getElementById('nameModText').value,
-                autoIncrement: document.getElementById('autoIncrement').checked,
-                aggressiveSpacing: document.getElementById('aggressiveSpacing').checked
+                autoIncrement: document.getElementById('autoIncrement').checked
             };
             localStorage.setItem('irisProfiles', JSON.stringify(allProfiles));
             localStorage.setItem('irisCurrentProfile', currentProfileKey);
@@ -572,7 +570,6 @@
         document.getElementById('nameModMode').addEventListener('change', saveSettings);
         document.getElementById('nameModText').addEventListener('input', saveSettings);
         document.getElementById('autoIncrement').addEventListener('change', saveSettings);
-        document.getElementById('aggressiveSpacing').addEventListener('change', saveSettings);
 
         // --- Profile Management ---
         function renderProfileSelect() {
@@ -613,7 +610,6 @@
             document.getElementById('nameModMode').value = activeProfile.nameModMode || 'prefix';
             document.getElementById('nameModText').value = activeProfile.nameModText || '';
             document.getElementById('autoIncrement').checked = activeProfile.autoIncrement !== false;
-            document.getElementById('aggressiveSpacing').checked = activeProfile.aggressiveSpacing === true;
             
             renderRules();
         }
@@ -934,8 +930,7 @@
                 authorName: document.getElementById('authorName').value,
                 nameModText: document.getElementById('nameModText').value,
                 nameModMode: document.getElementById('nameModMode').value,
-                autoIncrement: document.getElementById('autoIncrement').checked,
-                aggressiveSpacing: document.getElementById('aggressiveSpacing').checked
+                autoIncrement: document.getElementById('autoIncrement').checked
             };
             
             rules = []; 
@@ -955,7 +950,6 @@
                 document.getElementById('nameModText').value = lastResetState.nameModText;
                 document.getElementById('nameModMode').value = lastResetState.nameModMode;
                 document.getElementById('autoIncrement').checked = lastResetState.autoIncrement;
-                document.getElementById('aggressiveSpacing').checked = lastResetState.aggressiveSpacing;
                 
                 ruleCounter = Math.max(...rules.map(r => parseInt(r.id.split('-')[1]))) || 0;
                 
@@ -1000,8 +994,25 @@
             }
         }
 
+        // --- Helper for Reprocessing ---
+        function resetQueueForReprocessing() {
+            let changed = false;
+            fileQueue.forEach(f => {
+                if (f.status !== 'processing' && f.status !== 'pending') {
+                    f.status = 'pending';
+                    if (f.blobUrl) URL.revokeObjectURL(f.blobUrl);
+                    f.blobUrl = null;
+                    f.aggregatedMatches = null;
+                    f.lowTextWarning = false;
+                    changed = true;
+                }
+            });
+            if (changed) renderQueue();
+        }
+
         // --- Extract Annotations for Strip Modal ---
         async function prepareStripModal() {
+            resetQueueForReprocessing();
             toggleStripModal(); // Open immediately to prevent UI locking
             
             const authorList = document.getElementById('stripAuthorList');
@@ -1188,7 +1199,7 @@
             const doneCount = fileQueue.filter(f => f.status === 'done' || f.status === 'stripped').length;
             
             // Toggle Action Bar Visibilities
-            document.getElementById('inputActionsBar').classList.toggle('hidden', pendingCount === 0);
+            document.getElementById('inputActionsBar').classList.toggle('hidden', fileQueue.length === 0);
             document.getElementById('emptyQueueMsg').classList.toggle('hidden', fileQueue.length > 0);
             document.getElementById('clearQueueBtn').classList.toggle('hidden', fileQueue.length === 0);
             document.getElementById('saveAllBtn').classList.toggle('hidden', doneCount === 0);
@@ -1484,6 +1495,8 @@
                 showToast("Add at least one rule first."); 
                 return; 
             }
+            
+            resetQueueForReprocessing();
             
             const pending = fileQueue.filter(f => f.status === 'pending');
             if (pending.length === 0) return;
