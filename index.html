@@ -233,6 +233,11 @@
                         <input type="checkbox" id="autoIncrement" checked class="accent-gh-accent w-3.5 h-3.5">
                         Auto-increment batch numbers (e.g. _1, _2)
                     </label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer select-none mt-1">
+                        <input type="checkbox" id="aggressiveSpacing" class="accent-gh-accent w-3.5 h-3.5">
+                        <span class="opacity-90">Aggressive spacing fallback</span>
+                        <i class="ph-bold ph-info cursor-help text-gh-muted" title="Injects extra spaces during extraction. Check this if your searches are failing because words are glued together."></i>
+                    </label>
                 </div>
 
                 <div>
@@ -250,7 +255,7 @@
 
         <div class="mt-8 pt-4 border-t border-gh-border flex justify-between items-center text-xs opacity-50 font-mono">
             <span>&copy; 2026 Seumas</span>
-            <span>v0.3.4</span>
+            <span>v0.3.7</span>
         </div>
     </aside>
 
@@ -365,6 +370,11 @@
                 </div>
 
                 <div>
+                    <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-wrench text-gh-warning"></i> Troubleshooting: Missing Matches?</h3>
+                    <p>PDFs are messy. Sometimes older generators or OCR scanners smash words together behind the scenes. If your searches are failing (finding 0 matches for a word you <i>know</i> is there), check the <b>Aggressive spacing fallback</b> in your Output Settings and try again.</p>
+                </div>
+
+                <div>
                     <h3 class="font-bold text-gh-fg mb-2 flex items-center gap-2"><i class="ph-bold ph-folder-open text-gh-success"></i> Workspace Profiles</h3>
                     <p>Save your rules, author tags, and naming settings as Profiles. Switch between setups instantly, or export/import them as JSON files to back up your workflow or share with team members.</p>
                 </div>
@@ -413,7 +423,7 @@
         const defaultColors = ['#fef08a', '#bbf7d0', '#fbcfe8', '#bae6fd', '#fed7aa']; 
         
         let allProfiles = {
-            "Default": { rules: [], authorName: "", nameModMode: "prefix", nameModText: "", autoIncrement: true }
+            "Default": { rules: [], authorName: "", nameModMode: "prefix", nameModText: "", autoIncrement: true, aggressiveSpacing: false }
         };
         let currentProfileKey = "Default";
         
@@ -522,7 +532,8 @@
                 authorName: document.getElementById('authorName').value,
                 nameModMode: document.getElementById('nameModMode').value,
                 nameModText: document.getElementById('nameModText').value,
-                autoIncrement: document.getElementById('autoIncrement').checked
+                autoIncrement: document.getElementById('autoIncrement').checked,
+                aggressiveSpacing: document.getElementById('aggressiveSpacing').checked
             };
             localStorage.setItem('irisProfiles', JSON.stringify(allProfiles));
             localStorage.setItem('irisCurrentProfile', currentProfileKey);
@@ -561,6 +572,7 @@
         document.getElementById('nameModMode').addEventListener('change', saveSettings);
         document.getElementById('nameModText').addEventListener('input', saveSettings);
         document.getElementById('autoIncrement').addEventListener('change', saveSettings);
+        document.getElementById('aggressiveSpacing').addEventListener('change', saveSettings);
 
         // --- Profile Management ---
         function renderProfileSelect() {
@@ -601,6 +613,7 @@
             document.getElementById('nameModMode').value = activeProfile.nameModMode || 'prefix';
             document.getElementById('nameModText').value = activeProfile.nameModText || '';
             document.getElementById('autoIncrement').checked = activeProfile.autoIncrement !== false;
+            document.getElementById('aggressiveSpacing').checked = activeProfile.aggressiveSpacing === true;
             
             renderRules();
         }
@@ -921,7 +934,8 @@
                 authorName: document.getElementById('authorName').value,
                 nameModText: document.getElementById('nameModText').value,
                 nameModMode: document.getElementById('nameModMode').value,
-                autoIncrement: document.getElementById('autoIncrement').checked
+                autoIncrement: document.getElementById('autoIncrement').checked,
+                aggressiveSpacing: document.getElementById('aggressiveSpacing').checked
             };
             
             rules = []; 
@@ -941,6 +955,7 @@
                 document.getElementById('nameModText').value = lastResetState.nameModText;
                 document.getElementById('nameModMode').value = lastResetState.nameModMode;
                 document.getElementById('autoIncrement').checked = lastResetState.autoIncrement;
+                document.getElementById('aggressiveSpacing').checked = lastResetState.aggressiveSpacing;
                 
                 ruleCounter = Math.max(...rules.map(r => parseInt(r.id.split('-')[1]))) || 0;
                 
@@ -1481,6 +1496,7 @@
             document.getElementById('appIcon').classList.add('animate-iris');
 
             const author = document.getElementById('authorName').value.trim();
+            const useAggressiveSpacing = document.getElementById('aggressiveSpacing').checked;
 
             for (let fileRecord of pending) {
                 fileRecord.status = 'processing'; 
@@ -1511,7 +1527,7 @@
                         
                         if (i % 5 === 0) await new Promise(r => setTimeout(r, 5));
 
-                        const pageMatches = await processPageAnnotate(i, pdfjsDoc, pdfLibDoc, activeRules, author);
+                        const pageMatches = await processPageAnnotate(i, pdfjsDoc, pdfLibDoc, activeRules, author, useAggressiveSpacing);
                         textCheckCount += pageMatches.textLength || 0;
                         
                         for (const [ruleId, pageData] of Object.entries(pageMatches)) {
@@ -1551,7 +1567,7 @@
             showToast("Queue processing complete!");
         }
 
-        async function processPageAnnotate(pageNum, pdfjsDoc, pdfLibDoc, activeRules, author) {
+        async function processPageAnnotate(pageNum, pdfjsDoc, pdfLibDoc, activeRules, author, useAggressiveSpacing) {
             const page = await pdfjsDoc.getPage(pageNum);
             const textContent = await page.getTextContent();
             
@@ -1576,9 +1592,12 @@
                 
                 fullText += str;
                 
-                // Inject spaces at the end of lines or blocks to prevent 
-                // words from two separate blocks gluing together.
-                if (item.hasEOL || !str.endsWith(' ')) { 
+                // Inject a space ONLY if there is a hard line break, OR if aggressive spacing is enabled.
+                // (Older PDFs and OCR tools render words in tiny chunks or individual letters. 
+                // Forcing spaces anywhere else breaks the search phrase).
+                const needsSpace = useAggressiveSpacing ? (item.hasEOL || !str.endsWith(' ')) : item.hasEOL;
+                
+                if (needsSpace) { 
                     fullText += " "; 
                     charMap.push({ item: null, isSpace: true }); 
                 }
